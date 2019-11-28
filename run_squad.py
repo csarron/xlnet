@@ -1114,38 +1114,59 @@ def _get_spm_basename():
   return spm_basename
 
 
-def preprocess():
+def preprocess(is_training=True):
   sp_model = spm.SentencePieceProcessor()
   sp_model.Load(FLAGS.spiece_model_file)
   spm_basename = _get_spm_basename()
+  if is_training:
+    input_file = FLAGS.train_file
+    pkl_file = ''
+  else:
+    input_file = FLAGS.predict_file
+    pkl_file = os.path.join(
+        FLAGS.output_dir,
+        "{}.slen-{}.qlen-{}.eval.features.pkl".format(
+            spm_basename, FLAGS.max_seq_length, FLAGS.max_query_length))
 
-  train_rec_file = os.path.join(
+  rec_file = os.path.join(
       FLAGS.output_dir,
-      "{}.{}.slen-{}.qlen-{}.train.tf_record".format(
+      "{}.{}.slen-{}.qlen-{}.{}.tf_record".format(
           spm_basename, FLAGS.proc_id, FLAGS.max_seq_length,
-          FLAGS.max_query_length))
+          FLAGS.max_query_length, 'train' if is_training else 'eval'))
 
-  tf.logging.info("Read examples from {}".format(FLAGS.train_file))
-  train_examples = read_squad_examples(FLAGS.train_file, is_training=True)
-  train_examples = train_examples[FLAGS.proc_id::FLAGS.num_proc]
+  tf.logging.info("Read examples from {}".format(input_file))
+  examples = read_squad_examples(input_file, is_training=is_training)
+  examples = examples[FLAGS.proc_id::FLAGS.num_proc]
 
   # Pre-shuffle the input to avoid having to make a very large shuffle
   # buffer in the `input_fn`.
-  random.shuffle(train_examples)
+  if is_training:
+    random.shuffle(examples)
 
-  tf.logging.info("Write to {}".format(train_rec_file))
-  train_writer = FeatureWriter(
-      filename=train_rec_file,
-      is_training=True)
+  eval_features = []
+
+  def append_feature(feature):
+      if not is_training:
+        eval_features.append(feature)
+      feature_writer.process_feature(feature)
+
+  tf.logging.info("Write to {}".format(rec_file))
+  feature_writer = FeatureWriter(
+      filename=rec_file,
+      is_training=is_training)
+
   convert_examples_to_features(
-      examples=train_examples,
+      examples=examples,
       sp_model=sp_model,
       max_seq_length=FLAGS.max_seq_length,
       doc_stride=FLAGS.doc_stride,
       max_query_length=FLAGS.max_query_length,
-      is_training=True,
-      output_fn=train_writer.process_feature)
-  train_writer.close()
+      is_training=is_training,
+      output_fn=append_feature)
+  feature_writer.close()
+  if pkl_file:
+    with tf.gfile.Open(pkl_file, 'wb') as fout:
+      pickle.dump(eval_features, fout)
 
 
 def main(_):
@@ -1155,7 +1176,10 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.output_dir)
 
   if FLAGS.do_prepro:
-    preprocess()
+    if FLAGS.train_file:
+      preprocess(is_training=True)
+    if FLAGS.predict_file:
+      preprocess(is_training=False)
     return
 
   #### Validate flags
