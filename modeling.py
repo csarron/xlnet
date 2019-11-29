@@ -382,7 +382,7 @@ def two_stream_rel_attn(h, g, r, mems, r_w_bias, r_r_bias, seg_mat, r_s_bias,
     return output_h, output_g
 
 
-def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
+def transformer_xl(input_ids, n_token, n_layer, d_model, n_head,
                 d_head, d_inner, dropout, dropatt, attn_type,
                 bi_data, initializer, is_training, mem_len=None,
                 inp_q=None, mems=None,
@@ -397,7 +397,7 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
 
     Args:
 
-    inp_k: int32 Tensor in shape [len, bsz], the input token IDs.
+    input_ids: int32 Tensor in shape [len, bsz], the input token IDs.
     seg_id: int32 Tensor in shape [len, bsz], the input segment IDs.
     input_mask: float32 Tensor in shape [len, bsz], the input mask.
       0 for real tokens and 1 for padding.
@@ -467,15 +467,15 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
       r_r_bias = tf.get_variable('r_r_bias', [n_head, d_head],
                                  dtype=tf_float, initializer=initializer)
 
-    bsz = tf.shape(inp_k)[1]
-    qlen = tf.shape(inp_k)[0]
+    batch_size = tf.shape(input_ids)[1]
+    seq_len = tf.shape(input_ids)[0]
     mlen = tf.shape(mems[0])[0] if mems is not None else 0
-    klen = mlen + qlen
+    klen = mlen + seq_len
 
     ##### Attention mask
     # causal attention mask
     if attn_type == 'uni':
-      attn_mask = _create_mask(qlen, mlen, tf_float, same_length)
+      attn_mask = _create_mask(seq_len, mlen, tf_float, same_length)
       attn_mask = attn_mask[:, :, None, None]
     elif attn_type == 'bi':
       attn_mask = None
@@ -494,7 +494,7 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
 
     if data_mask is not None:
       # all mems can be attended to
-      mems_mask = tf.zeros([tf.shape(data_mask)[0], mlen, bsz],
+      mems_mask = tf.zeros([tf.shape(data_mask)[0], mlen, batch_size],
                            dtype=tf_float)
       data_mask = tf.concat([mems_mask, data_mask], 1)
       if attn_mask is None:
@@ -506,8 +506,8 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
       attn_mask = tf.cast(attn_mask > 0, dtype=tf_float)
 
     if attn_mask is not None:
-      non_tgt_mask = -tf.eye(qlen, dtype=tf_float)
-      non_tgt_mask = tf.concat([tf.zeros([qlen, mlen], dtype=tf_float),
+      non_tgt_mask = -tf.eye(seq_len, dtype=tf_float)
+      non_tgt_mask = tf.concat([tf.zeros([seq_len, mlen], dtype=tf_float),
                                 non_tgt_mask], axis=-1)
       non_tgt_mask = tf.cast((attn_mask + non_tgt_mask[:, :, None, None]) > 0,
                              dtype=tf_float)
@@ -516,7 +516,7 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
 
     ##### Word embedding
     word_emb_k, lookup_table = embedding_lookup(
-        x=inp_k,
+        x=input_ids,
         n_token=n_token,
         d_embed=d_model,
         initializer=initializer,
@@ -528,7 +528,7 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
       with tf.variable_scope('mask_emb'):
         mask_emb = tf.get_variable('mask_emb', [1, 1, d_model], dtype=tf_float)
         if target_mapping is not None:
-          word_emb_q = tf.tile(mask_emb, [tf.shape(target_mapping)[0], bsz, 1])
+          word_emb_q = tf.tile(mask_emb, [tf.shape(target_mapping)[0], batch_size, 1])
         else:
           inp_q_ext = inp_q[:, :, None]
           word_emb_q = inp_q_ext * mask_emb + (1 - inp_q_ext) * word_emb_k
@@ -550,7 +550,7 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
                                   dtype=tf_float, initializer=initializer)
 
       # Convert `seg_id` to one-hot `seg_mat`
-      mem_pad = tf.zeros([mlen, bsz], dtype=tf.int32)
+      mem_pad = tf.zeros([mlen, batch_size], dtype=tf.int32)
       cat_ids = tf.concat([mem_pad, seg_id], 0)
 
       # `1` indicates not in the same segment [qlen x klen x bsz]
@@ -563,8 +563,8 @@ def transformer_xl(inp_k, n_token, n_layer, d_model, n_head,
 
     ##### Positional encoding
     pos_emb = relative_positional_encoding(
-        qlen, klen, d_model, clamp_len, attn_type, bi_data,
-        bsz=bsz, dtype=tf_float)
+        seq_len, klen, d_model, clamp_len, attn_type, bi_data,
+        bsz=batch_size, dtype=tf_float)
     pos_emb = tf.layers.dropout(pos_emb, dropout, training=is_training)
 
     ##### Attention layers

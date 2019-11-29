@@ -212,12 +212,17 @@ def get_regression_loss(
 def get_qa_outputs(FLAGS, features, is_training):
   """Loss for downstream span-extraction QA tasks such as SQuAD."""
 
-  inp = tf.transpose(features["input_ids"], [1, 0])
-  seg_id = tf.transpose(features["segment_ids"], [1, 0])
-  inp_mask = tf.transpose(features["input_mask"], [1, 0])
-  cls_index = tf.reshape(features["cls_index"], [-1])
-
-  seq_len = tf.shape(inp)[0]
+  input_ids = features["input_ids"]
+  seg_id = features["segment_ids"]
+  input_mask_int = tf.cast(tf.cast(input_ids, tf.bool), tf.int32)
+  input_mask = tf.cast(input_mask_int, tf.float32)
+  cls_index = tf.reshape(tf.reduce_sum(input_mask_int, axis=1), [-1])
+  p_mask = tf.cast(tf.cast(seg_id, tf.bool), tf.float32)
+  # inp_mask = tf.transpose(features["input_mask"], [1, 0])
+  # cls_index = tf.reshape(features["cls_index"], [-1])
+  input_ids = tf.transpose(input_ids, [1, 0])
+  seg_id = tf.transpose(seg_id, [1, 0])
+  seq_len = tf.shape(input_ids)[0]
 
   xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
   run_config = xlnet.create_run_config(is_training, True, FLAGS)
@@ -225,16 +230,16 @@ def get_qa_outputs(FLAGS, features, is_training):
   xlnet_model = xlnet.XLNetModel(
       xlnet_config=xlnet_config,
       run_config=run_config,
-      input_ids=inp,
+      input_ids=input_ids,
       seg_ids=seg_id,
-      input_mask=inp_mask)
+      input_mask=input_mask)
   output = xlnet_model.get_sequence_output()
   initializer = xlnet_model.get_initializer()
 
   return_dict = {}
 
   # invalid position mask such as query and special symbols (PAD, SEP, CLS)
-  p_mask = features["p_mask"]
+  # p_mask = features["p_mask"]
 
   # logit of the start position
   with tf.variable_scope("start_logits"):

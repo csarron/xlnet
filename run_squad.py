@@ -694,11 +694,11 @@ class FeatureWriter(object):
     features = collections.OrderedDict()
     features["unique_ids"] = create_int_feature([feature.unique_id])
     features["input_ids"] = create_int_feature(feature.input_ids)
-    features["input_mask"] = create_float_feature(feature.input_mask)
-    features["p_mask"] = create_float_feature(feature.p_mask)
+    # features["input_mask"] = create_float_feature(feature.input_mask)
+    # features["p_mask"] = create_float_feature(feature.p_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
 
-    features["cls_index"] = create_int_feature([feature.cls_index])
+    # features["cls_index"] = create_int_feature([feature.cls_index])
 
     if self.is_training:
       features["start_positions"] = create_int_feature([feature.start_position])
@@ -926,10 +926,10 @@ def input_fn_builder(input_glob, seq_length, is_training, drop_remainder,
   name_to_features = {
       "unique_ids": tf.FixedLenFeature([], tf.int64),
       "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
-      "input_mask": tf.FixedLenFeature([seq_length], tf.float32),
+      # "input_mask": tf.FixedLenFeature([seq_length], tf.float32),
       "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-      "cls_index": tf.FixedLenFeature([], tf.int64),
-      "p_mask": tf.FixedLenFeature([seq_length], tf.float32)
+      # "cls_index": tf.FixedLenFeature([], tf.int64),
+      # "p_mask": tf.FixedLenFeature([seq_length], tf.float32)
   }
 
   if is_training:
