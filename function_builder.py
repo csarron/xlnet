@@ -221,6 +221,7 @@ def get_qa_outputs(FLAGS, features, is_training):
   # inp_mask = tf.transpose(features["input_mask"], [1, 0])
   # cls_index = tf.reshape(features["cls_index"], [-1])
   input_ids = tf.transpose(input_ids, [1, 0])
+  input_mask = tf.transpose(input_mask, [1, 0])
   seg_id = tf.transpose(seg_id, [1, 0])
   seq_len = tf.shape(input_ids)[0]
 
