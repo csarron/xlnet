@@ -208,7 +208,7 @@ class XLNetModel(object):
     )
 
     input_args = dict(
-        inp_k=input_ids,
+        input_ids=input_ids,
         seg_id=seg_ids,
         input_mask=input_mask,
         mems=mems,
