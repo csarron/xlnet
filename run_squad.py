@@ -1240,8 +1240,9 @@ def main(_):
 
     eval_rec_file = os.path.join(
         FLAGS.output_dir,
-        "{}.slen-{}.qlen-{}.eval.tf_record".format(
-            spm_basename, FLAGS.max_seq_length, FLAGS.max_query_length))
+        "{}.{}.slen-{}.qlen-{}.eval.tf_record".format(
+            spm_basename, FLAGS.proc_id, FLAGS.max_seq_length,
+            FLAGS.max_query_length))
     eval_feature_file = os.path.join(
         FLAGS.output_dir,
         "{}.slen-{}.qlen-{}.eval.features.pkl".format(
