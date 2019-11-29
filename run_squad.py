@@ -575,11 +575,11 @@ def convert_examples_to_features(examples, sp_model, max_seq_length,
         tf.logging.info("token_is_max_context: %s" % " ".join([
             "%d:%s" % (x, y) for (x, y) in six.iteritems(token_is_max_context)
         ]))
-        tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        tf.logging.info("input_ids: [%s]" % ",".join([str(x) for x in input_ids]))
         tf.logging.info(
-            "input_mask: %s" % " ".join([str(x) for x in input_mask]))
+            "input_mask: [%s]" % ",".join([str(x) for x in input_mask]))
         tf.logging.info(
-            "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+            "segment_ids: [%s]" % ",".join([str(x) for x in segment_ids]))
 
         if is_training and span_is_impossible:
           tf.logging.info("impossible example span")
