@@ -215,12 +215,12 @@ def get_qa_outputs(FLAGS, features, is_training):
   input_ids = features["input_ids"]
   seg_id = features["segment_ids"]
   input_mask_int = tf.cast(tf.cast(input_ids, tf.bool), tf.int32)
-  input_mask = tf.cast(input_mask_int, tf.float32)
   cls_index = tf.reshape(tf.reduce_sum(input_mask_int, axis=1), [-1])
   p_mask = tf.cast(tf.cast(seg_id, tf.bool), tf.float32)
   # inp_mask = tf.transpose(features["input_mask"], [1, 0])
   # cls_index = tf.reshape(features["cls_index"], [-1])
   input_ids = tf.transpose(input_ids, [1, 0])
+  input_mask = 1-tf.cast(input_mask_int, tf.float32)
   input_mask = tf.transpose(input_mask, [1, 0])
   seg_id = tf.transpose(seg_id, [1, 0])
   seq_len = tf.shape(input_ids)[0]
