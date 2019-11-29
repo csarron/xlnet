@@ -692,7 +692,7 @@ class FeatureWriter(object):
       return f
 
     features = collections.OrderedDict()
-    features["unique_ids"] = create_int_feature([feature.unique_id])
+    features["feature_id"] = create_int_feature([feature.unique_id])
     features["input_ids"] = create_int_feature(feature.input_ids)
     # features["input_mask"] = create_float_feature(feature.input_mask)
     # features["p_mask"] = create_float_feature(feature.p_mask)
@@ -924,7 +924,7 @@ def input_fn_builder(input_glob, seq_length, is_training, drop_remainder,
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
   name_to_features = {
-      "unique_ids": tf.FixedLenFeature([], tf.int64),
+      "feature_id": tf.FixedLenFeature([], tf.int64),
       "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
       # "input_mask": tf.FixedLenFeature([seq_length], tf.float32),
       "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
@@ -1037,7 +1037,7 @@ def get_model_fn():
         tf.logging.info("init_checkpoint not being used in predict mode.")
 
       predictions = {
-          "unique_ids": features["unique_ids"],
+          "feature_id": features["feature_id"],
           "start_top_index": outputs["start_top_index"],
           "start_top_log_probs": outputs["start_top_log_probs"],
           "end_top_index": outputs["end_top_index"],
@@ -1289,7 +1289,7 @@ def main(_):
       if len(cur_results) % 1000 == 0:
         tf.logging.info("Processing example: %d" % (len(cur_results)))
 
-      unique_id = int(result["unique_ids"])
+      unique_id = int(result["feature_id"])
       start_top_log_probs = (
           [float(x) for x in result["start_top_log_probs"].flat])
       start_top_index = [int(x) for x in result["start_top_index"].flat]
