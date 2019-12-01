@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import json
 import re
 import string
 from collections import Counter
@@ -80,3 +81,29 @@ def get_em_f1(all_predictions, all_ground_truths):
     em_score_cum = 100.0 * em_score_cum / total
     f1_score_cum = 100.0 * f1_score_cum / total
     return em_score_cum, f1_score_cum
+
+
+def get_example_and_dev_ids(feature_id):
+    # e.g. 6 for ex1000_56be4db0acb8001400a502ec
+    separator_idx = feature_id.find('_')
+    para_sep_idx = feature_id.find(':')  # for squad compatibility
+    if para_sep_idx == -1:
+        para_sep_idx = separator_idx
+    return int(feature_id[2:separator_idx]), feature_id[para_sep_idx + 1:]
+
+
+def load_examples(input_file):
+    import tensorflow as tf
+
+    all_examples = dict()  # id to example map
+    if not tf.io.gfile.exists(input_file):
+        raise ValueError('{} does not exist!'.format(input_file))
+
+    with tf.io.gfile.GFile(input_file, "r") as f:
+        for line in f:
+            item = json.loads(line.strip())
+            feature_id = item['feature_id']  # ex1_56be4db0acb8001400a502ec
+            pred_id, orig_id = get_example_and_dev_ids(feature_id)
+            item['orig_id'] = orig_id
+            all_examples[pred_id] = item
+    return all_examples
