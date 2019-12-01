@@ -567,6 +567,8 @@ def convert_examples_to_features(examples, sp_model, max_seq_length,
         tf.logging.info("*** Example ***")
         tf.logging.info("unique_id: %s" % (unique_id))
         tf.logging.info("example_index: %s" % (example_index))
+        tf.logging.info("question_text: %s" % (example.question_text))
+        tf.logging.info("paragraph_text: %s" % (example.paragraph_text))
         tf.logging.info("doc_span_index: %s" % (doc_span_index))
         tf.logging.info("tok_start_to_orig_index: %s" % " ".join(
             [str(x) for x in cur_tok_start_to_orig_index]))
@@ -577,9 +579,11 @@ def convert_examples_to_features(examples, sp_model, max_seq_length,
         ]))
         tf.logging.info("input_ids: [%s]" % ",".join([str(x) for x in input_ids]))
         tf.logging.info(
-            "input_mask: [%s]" % ",".join([str(x) for x in input_mask]))
-        tf.logging.info(
             "segment_ids: [%s]" % ",".join([str(x) for x in segment_ids]))
+        tf.logging.info(
+            "query_tokens: [%s]" % ",".join([str(x) for x in query_tokens]))
+        tf.logging.info(
+            "para_tokens: [%s]" % ",".join([x for x in para_tokens]))
 
         if is_training and span_is_impossible:
           tf.logging.info("impossible example span")
