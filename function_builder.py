@@ -324,6 +324,8 @@ def get_qa_outputs(FLAGS, features, is_training):
     return_dict["start_top_index"] = start_top_index
     return_dict["end_top_log_probs"] = end_top_log_probs
     return_dict["end_top_index"] = end_top_index
+    return_dict["start_logits"] = start_logits
+    return_dict["end_logits"] = end_logits
 
   # an additional layer to predict answerability
   with tf.variable_scope("answer_class"):
