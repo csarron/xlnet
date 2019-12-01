@@ -1374,9 +1374,9 @@ def main(_):
         with tf.gfile.Open(FLAGS.eval_record_file + '.pk', 'wb') as fout:
             pickle.dump(cur_results, fout)
         eval_examples = load_examples(FLAGS.eval_example_file)
-        final_predictions = {}
-        final_pred_scores = {}
-        all_ground_truths = {}
+        final_predictions = collections.OrderedDict()
+        final_pred_scores = collections.OrderedDict()
+        all_ground_truths = collections.OrderedDict()
         for cur_result in cur_results:
             unique_id, start_logits, end_logits = cur_result
             item = eval_examples[int(unique_id)]
@@ -1405,7 +1405,7 @@ def main(_):
                 if 'label' in item:
                     answers = item['label']['ans']
                     all_ground_truths[orig_id] = [a[1] for a in answers]
-        pred_path = FLAGS.eval_record_file + 'predictions.json'
+        pred_path = FLAGS.eval_record_file + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:
             f.write(json.dumps(final_predictions, indent=2) + "\n")
         tf.logging.info("final predictions written to {}".format(pred_path))
