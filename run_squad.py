@@ -705,12 +705,12 @@ class FeatureWriter(object):
     # features["cls_index"] = create_int_feature([feature.cls_index])
 
     if self.is_training:
-      features["start_positions"] = create_int_feature([feature.start_position])
-      features["end_positions"] = create_int_feature([feature.end_position])
+      features["answer_start"] = create_int_feature([feature.start_position])
+      features["answer_end"] = create_int_feature([feature.end_position])
       impossible = 0
       if feature.is_impossible:
         impossible = 1
-      features["is_impossible"] = create_float_feature([impossible])
+      features["cls"] = create_float_feature([impossible])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     self._writer.write(tf_example.SerializeToString())
@@ -937,9 +937,9 @@ def input_fn_builder(input_glob, seq_length, is_training, drop_remainder,
   }
 
   if is_training:
-    name_to_features["start_positions"] = tf.FixedLenFeature([], tf.int64)
-    name_to_features["end_positions"] = tf.FixedLenFeature([], tf.int64)
-    name_to_features["is_impossible"] = tf.FixedLenFeature([], tf.float32)
+    name_to_features["answer_start"] = tf.FixedLenFeature([], tf.int64)
+    name_to_features["answer_end"] = tf.FixedLenFeature([], tf.int64)
+    name_to_features["cls"] = tf.FixedLenFeature([], tf.float32)
 
   tf.logging.info("Input tfrecord file glob {}".format(input_glob))
   global_input_paths = tf.gfile.Glob(input_glob)
@@ -1068,14 +1068,14 @@ def get_model_fn():
       return loss
 
     start_loss = compute_loss(
-        outputs["start_log_probs"], features["start_positions"])
+        outputs["start_log_probs"], features["answer_start"])
     end_loss = compute_loss(
-        outputs["end_log_probs"], features["end_positions"])
+        outputs["end_log_probs"], features["answer_end"])
 
     total_loss = (start_loss + end_loss) * 0.5
 
     cls_logits = outputs["cls_logits"]
-    is_impossible = tf.reshape(features["is_impossible"], [-1])
+    is_impossible = tf.reshape(features["cls"], [-1])
     regression_loss = tf.nn.sigmoid_cross_entropy_with_logits(
         labels=is_impossible, logits=cls_logits)
     regression_loss = tf.reduce_mean(regression_loss)
