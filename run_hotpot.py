@@ -68,6 +68,8 @@ flags.DEFINE_string("spiece_model_file", default="",
                     help="Sentence Piece model path.")
 flags.DEFINE_string("model_dir", default="",
                     help="Directory for saving the finetuned model.")
+flags.DEFINE_string("checkpoint_path", default="",
+                    help="the finetuned model path.")
 flags.DEFINE_string("train_record_file", default="",
                     help="Path of train file.")
 flags.DEFINE_string("eval_record_file", default="",
@@ -417,6 +419,7 @@ def main(_):
 
         cur_results = []
         for result in estimator.predict(input_fn=eval_input_fn,
+                                        checkpoint_path=checkpoint_path,
                                         yield_single_examples=True):
 
             if len(cur_results) % 1000 == 0:
