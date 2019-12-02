@@ -419,7 +419,7 @@ def main(_):
 
         cur_results = []
         for result in estimator.predict(input_fn=eval_input_fn,
-                                        checkpoint_path=checkpoint_path,
+                                        checkpoint_path=FLAGS.checkpoint_path,
                                         yield_single_examples=True):
 
             if len(cur_results) % 1000 == 0:
