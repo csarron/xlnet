@@ -14,14 +14,13 @@ python run_squad.py \
 
 ctpu up --tpu-size=v3-8 --tpu-only --name=bert-tpu --tf-version 1.14.1.dev20190518 --noconf
 
-if ! python run_hotpot.py \
+if python run_hotpot.py \
   --use_tpu=True \
   --tpu=bert-tpu \
   --num_hosts=1 \
   --num_core_per_host=8 \
   --model_config_path="gs://bert-gcs/xlnet/init_cased_large/xlnet_config.json" \
   --spiece_model_file=data/spiece.model \
-  --output_dir="gs://bert-gcs/xlnet/data/hotpot" \
   --init_checkpoint="gs://bert-gcs/xlnet/init_cased_large/xlnet_model.ckpt" \
   --model_dir="gs://bert-gcs/xlnet/data/hotpot_ckpt" \
   --train_file="gs://bert-gcs/eet/datasets/converted/xlnet/hotpot-train.94701.tfrecord" \
@@ -38,14 +37,12 @@ if ! python run_hotpot.py \
   --iterations=1000 \
   --save_steps=1000 \
   --train_steps=8000 \
-  --warmup_steps=1000 2>&1 | tee data/tune-xlnet-large-hotpot.log
-
-ctpu pause  --tpu-only --name=bert-tpu --noconf;
-
-then
-  echo "run failed"
+  --warmup_steps=1000 2>&1 | tee data/tune-xlnet-large-hotpot.log; then
+  echo "sucess run, pause tpu"
+  ctpu pause  --tpu-only --name=bert-tpu --noconf;
+else
+  echo "run error, not pause tpu"
 fi
-
 
 python run_squad.py \
   --use_tpu=True \

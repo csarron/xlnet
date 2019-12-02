@@ -360,9 +360,6 @@ def get_model_fn():
 def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    if not tf.gfile.Exists(FLAGS.output_dir):
-        tf.gfile.MakeDirs(FLAGS.output_dir)
-
     #### Validate flags
     if FLAGS.save_steps is not None:
         FLAGS.iterations = min(FLAGS.iterations, FLAGS.save_steps)
