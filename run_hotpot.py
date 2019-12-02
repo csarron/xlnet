@@ -494,7 +494,8 @@ def main(_):
 
         pred_path = FLAGS.eval_record_file + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:
-            f.write(json.dumps(final_predictions, indent=2) + "\n")
+            f.write(json.dumps({"answer": final_predictions, "sp": {}},
+                               indent=2) + "\n")
         tf.logging.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
         tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
