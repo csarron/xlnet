@@ -10,7 +10,6 @@ import numpy as np
 import six
 from absl import flags
 
-import xlnet
 from eval import get_em_f1
 from eval import load_examples
 
@@ -19,10 +18,27 @@ if six.PY2:
 else:
     import pickle
 
-import tensorflow as tf
+import logging
+
+logger = logging.getLogger('xlnet')
+
+logger.setLevel(logging.INFO)
+fmt = logging.Formatter("%(levelname)s:%(asctime)s.%(msecs)03d:"
+                        "%(pathname)s:%(lineno)d: %(message)s",
+                        "%Y-%m-%d_%H:%M:%S")
+handler = logging.StreamHandler()
+handler.setFormatter(fmt)
+logger.addHandler(handler)
+logger.propagate = False
+
+import tensorflow
+
+tensorflow.logging._logger = logger
 import function_builder
 import model_utils
+import xlnet
 
+tf = tensorflow
 # Model
 flags.DEFINE_string("model_config_path", default=None,
                     help="Model config path.")
@@ -358,7 +374,7 @@ def get_model_fn():
 
 
 def main(_):
-    tf.logging.set_verbosity(tf.logging.INFO)
+    tf.logging.set_verbosity(tf.logging.ERROR)
 
     #### Validate flags
     if FLAGS.save_steps is not None:
