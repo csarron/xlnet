@@ -12,7 +12,10 @@ python run_squad.py \
   --predict_batch_size=32 \
   2>&1 | tee data/dev-xlnet-large-squad-v1.1-new2.log
 
+# TODO: eval ckpt at different steps, may tune warmup, train at different msl
+
 ctpu up --tpu-size=v3-8 --tpu-only --name=xlnet-tpu --tf-version 1.14.1.dev20190518 --noconf
+sleep 30
 
 msl=1600
 model=base
