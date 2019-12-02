@@ -6,6 +6,7 @@ from __future__ import print_function
 import collections
 import json
 import logging
+import os
 
 import numpy as np
 import six
@@ -418,8 +419,11 @@ def main(_):
         )
 
         cur_results = []
+        checkpoint_path = FLAGS.checkpoint_path
+        if not checkpoint_path:
+            checkpoint_path = None
         for result in estimator.predict(input_fn=eval_input_fn,
-                                        checkpoint_path=FLAGS.checkpoint_path,
+                                        checkpoint_path=checkpoint_path,
                                         yield_single_examples=True):
 
             if len(cur_results) % 1000 == 0:
@@ -435,8 +439,9 @@ def main(_):
             cur_results.append(
                 (unique_id, start_logits, end_logits, cls_logits))
 
-        with tf.gfile.Open(FLAGS.eval_record_file + '.pk', 'wb') as fout:
-            pickle.dump(cur_results, fout)
+        ckpt = os.path.basename(checkpoint_path) if checkpoint_path else ''
+        # with tf.gfile.Open(FLAGS.eval_record_file + ckpt + '.pk', 'wb') as fout:
+        #     pickle.dump(cur_results, fout)
         eval_examples = load_examples(FLAGS.eval_example_file)
         final_cls = collections.OrderedDict()
         final_cls_prob = collections.OrderedDict()
@@ -495,7 +500,7 @@ def main(_):
                 # no
                 final_predictions[orig_id] = 'no'
 
-        pred_path = FLAGS.eval_record_file + '.predictions.json'
+        pred_path = FLAGS.eval_record_file + ckpt + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:
             f.write(json.dumps({"answer": final_predictions, "sp": {}},
                                indent=2) + "\n")
