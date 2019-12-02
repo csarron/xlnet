@@ -141,6 +141,8 @@ flags.DEFINE_string("target_eval_key", default="best_f1",
 
 FLAGS = flags.FLAGS
 
+logger.info("FLAGS: {}".format(FLAGS.flag_values_dict()))
+
 
 def input_fn_builder(input_file, seq_length, is_training, drop_remainder,
                      num_threads=8):
