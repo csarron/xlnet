@@ -12,7 +12,7 @@ python run_squad.py \
   --predict_batch_size=32 \
   2>&1 | tee data/dev-xlnet-large-squad-v1.1-new2.log
 
-ctpu up --tpu-size=v3-8 --tpu-only --name=bert-tpu --tf-version 1.14.1.dev20190518 --noconf
+ctpu up --tpu-size=v3-8 --tpu-only --name=xlnet-tpu --tf-version 1.14.1.dev20190518 --noconf
 
 msl=1600
 model=base
@@ -37,14 +37,18 @@ if python run_hotpot.py \
   --adam_epsilon=1e-6 \
   --iterations=1000 \
   --save_steps=1000 \
-  --train_steps=8000 \
-  --warmup_steps=1000 2>&1 | tee data/tune-xlnet-${model}-hotpot-${msl}.log;test "${PIPESTATUS[0]}"; then
+  --train_steps=15000 \
+  --warmup_steps=1000 2>&1 | tee data/train-xlnet-${model}-hotpot-${msl}.log;test "${PIPESTATUS[0]}"; then
 
   echo "sucess run, pause tpu"
   ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
+
 else
   echo "run error, not pause tpu"
 fi
+
+sleep 120
+ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 
 msl=1600
 model=base
