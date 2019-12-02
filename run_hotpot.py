@@ -368,9 +368,6 @@ def main(_):
         raise ValueError(
             "At least one of `do_train` and `do_predict` must be True.")
 
-    if FLAGS.do_predict and not tf.gfile.Exists(FLAGS.predict_dir):
-        tf.gfile.MakeDirs(FLAGS.predict_dir)
-
     ### TPU Configuration
     run_config = model_utils.configure_tpu(FLAGS)
 

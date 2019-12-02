@@ -37,7 +37,7 @@ if python run_hotpot.py \
   --iterations=1000 \
   --save_steps=1000 \
   --train_steps=8000 \
-  --warmup_steps=1000 2>&1 | tee data/tune-xlnet-large-hotpot.log; then
+  --warmup_steps=1000 2>&1 | tee data/tune-xlnet-large-hotpot.log;test "${PIPESTATUS[0]}"; then
   echo "sucess run, pause tpu"
   ctpu pause  --tpu-only --name=bert-tpu --noconf;
 else
