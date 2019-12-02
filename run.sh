@@ -53,9 +53,12 @@ fi
 sleep 120
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 
+ctpu up --tpu-size=v3-8 --tpu-only --name=xlnet-tpu --tf-version 1.14.1.dev20190518 --noconf
+sleep 30
+
 msl=1600
 model=base
-for step in 11000 12000 13000 14000; do
+for step in 12000 13000 14000; do
 
   if python run_hotpot.py \
     --use_tpu=True \
