@@ -23,7 +23,7 @@ if python run_hotpot.py \
   --spiece_model_file=data/spiece.model \
   --init_checkpoint="gs://bert-gcs/xlnet/init_cased_large/xlnet_model.ckpt" \
   --model_dir="gs://bert-gcs/xlnet/data/hotpot_ckpt" \
-  --train_file="gs://bert-gcs/eet/datasets/converted/xlnet/hotpot-train.94701.tfrecord" \
+  --train_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/hotpot-train.94701.tfrecord" \
   --eval_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/hotpot-dev.7742.tfrecord" \
   --eval_example_file="gs://bert-gcs/eet/datasets/converted/xlnet/hotpot-dev.7742.examples.jsonl" \
   --uncased=False \

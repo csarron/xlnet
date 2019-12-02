@@ -305,9 +305,9 @@ def get_model_fn():
         ### Compute loss
         seq_length = tf.shape(features["input_ids"])[1]
 
-        def compute_loss(log_probs, positions):
+        def compute_loss(log_probs, positions, depth=seq_length):
             one_hot_positions = tf.one_hot(
-                positions, depth=seq_length, dtype=tf.float32)
+                positions, depth=depth, dtype=tf.float32)
 
             loss = - tf.reduce_sum(one_hot_positions * log_probs, axis=-1)
             loss = tf.reduce_mean(loss)
@@ -321,7 +321,7 @@ def get_model_fn():
         total_loss = (start_loss + end_loss) * 0.5
 
         cls_loss = compute_loss(
-            outputs["cls_log_probs"], features["cls"])
+            outputs["cls_log_probs"], features["cls"], depth=3)
 
         # note(zhiliny): by default multiply the loss by 0.5 so that the scale is
         # comparable to start_loss and end_loss
