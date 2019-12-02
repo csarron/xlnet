@@ -34,7 +34,6 @@ handler.setFormatter(fmt)
 logger.addHandler(handler)
 logger.propagate = False
 
-
 # Model
 flags.DEFINE_string("model_config_path", default=None,
                     help="Model config path.")
@@ -435,43 +434,65 @@ def main(_):
         with tf.gfile.Open(FLAGS.eval_record_file + '.pk', 'wb') as fout:
             pickle.dump(cur_results, fout)
         eval_examples = load_examples(FLAGS.eval_example_file)
+        final_cls = collections.OrderedDict()
+        final_cls_prob = collections.OrderedDict()
         final_predictions = collections.OrderedDict()
-        final_pred_scores = collections.OrderedDict()
+        final_span_scores = collections.OrderedDict()
         all_ground_truths = collections.OrderedDict()
         for cur_result in cur_results:
             unique_id, start_logits, end_logits, cls_logits = cur_result
             item = eval_examples[int(unique_id)]
             orig_id = item['orig_id']
-            # or len(item['context_tokens'])
-            context_len = len(item['context_spans'])
-            context_start = 0  # self.get_context_start(item)
-            context_end = context_start + context_len
-            # only consider valid context logits
-            x_s = np.exp(start_logits[context_start:context_end])
-            y_s = np.exp(end_logits[context_start:context_end])
-            z = np.outer(x_s, y_s)
-            zn = np.tril(np.triu(z), 30)
-            pred_start, pred_end = np.unravel_index(np.argmax(zn), zn.shape)
-            pred_score = zn[pred_start, pred_end]
+            cls_prob = np.exp(cls_logits)
+            cls_idx = np.argmax(cls_prob)
 
-            if pred_score > final_pred_scores.get(orig_id, 0):
-                start_span = item['context_spans'][pred_start]
-                predicted_char_start = start_span[0]
-                end_span = item['context_spans'][pred_end]
-                predicted_char_end = end_span[1]
-                predicted_text = item['context'][
-                                 predicted_char_start:predicted_char_end]
-                final_predictions[orig_id] = predicted_text
-                final_pred_scores[orig_id] = pred_score
+            pred_cls_prob = cls_prob[cls_idx]
+            if pred_cls_prob > final_cls_prob.get(orig_id, 0):
+                final_cls_prob[orig_id] = pred_cls_prob
+                final_cls[orig_id] = cls_idx
+
+            if final_cls[orig_id] == 0:
+                # or len(item['context_tokens'])
+                context_len = len(item['context_spans'])
+                context_start = 0  # self.get_context_start(item)
+                context_end = context_start + context_len
+                # only consider valid context logits
+                x_s = np.exp(start_logits[context_start:context_end])
+                y_s = np.exp(end_logits[context_start:context_end])
+                z = np.outer(x_s, y_s)
+                zn = np.tril(np.triu(z), 30)
+                pred_start, pred_end = np.unravel_index(np.argmax(zn), zn.shape)
+                pred_score = zn[pred_start, pred_end]
+
+                if pred_score > final_span_scores.get(orig_id, 0):
+                    start_span = item['context_spans'][pred_start]
+                    predicted_char_start = start_span[0]
+                    end_span = item['context_spans'][pred_end]
+                    predicted_char_end = end_span[1]
+                    predicted_text = item['context'][
+                                     predicted_char_start:predicted_char_end]
+                    final_predictions[orig_id] = predicted_text
+                    final_span_scores[orig_id] = pred_score
+                    if 'label' in item:
+                        answers = item['label']['ans']
+                        all_ground_truths[orig_id] = [a[1] for a in answers]
+            elif final_cls[orig_id] == 1:
+                # yes
+                final_predictions[orig_id] = 'yes'
                 if 'label' in item:
-                    answers = item['label']['ans']
-                    all_ground_truths[orig_id] = [a[1] for a in answers]
+                    all_ground_truths[orig_id] = 'yes'
+            else:  # cls == 2
+                # no
+                final_predictions[orig_id] = 'no'
+                if 'label' in item:
+                    all_ground_truths[orig_id] = 'no'
+
         pred_path = FLAGS.eval_record_file + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:
             f.write(json.dumps(final_predictions, indent=2) + "\n")
-        logger.info("final predictions written to {}".format(pred_path))
+        tf.logging.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
-        logger.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
+        tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
 
 
 if __name__ == "__main__":
