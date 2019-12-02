@@ -5,11 +5,16 @@ from __future__ import print_function
 
 import collections
 import json
+import logging
 
 import numpy as np
 import six
+import tensorflow as tf
 from absl import flags
 
+import function_builder
+import model_utils
+import xlnet
 from eval import get_em_f1
 from eval import load_examples
 
@@ -17,8 +22,6 @@ if six.PY2:
     import cPickle as pickle
 else:
     import pickle
-
-import logging
 
 logger = logging.getLogger('xlnet')
 
@@ -31,14 +34,7 @@ handler.setFormatter(fmt)
 logger.addHandler(handler)
 logger.propagate = False
 
-import tensorflow
 
-tensorflow.logging._logger = logger
-import function_builder
-import model_utils
-import xlnet
-
-tf = tensorflow
 # Model
 flags.DEFINE_string("model_config_path", default=None,
                     help="Model config path.")
@@ -162,7 +158,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder,
         name_to_features["answer_end"] = tf.FixedLenFeature([], tf.int64)
         name_to_features["cls"] = tf.FixedLenFeature([], tf.int64)
 
-    tf.logging.info("Input tfrecord file: {}".format(input_file))
+    logger.info("Input tfrecord file: {}".format(input_file))
 
     def _decode_record(record, name_to_features):
         """Decodes a record to a TensorFlow example."""
@@ -293,14 +289,14 @@ def get_model_fn():
 
         #### Check model parameters
         num_params = sum([np.prod(v.shape) for v in tf.trainable_variables()])
-        tf.logging.info('#params: {}'.format(num_params))
+        logger.info('#params: {}'.format(num_params))
 
         scaffold_fn = None
 
         #### Evaluation mode
         if mode == tf.estimator.ModeKeys.PREDICT:
             if FLAGS.init_checkpoint:
-                tf.logging.info(
+                logger.info(
                     "init_checkpoint not being used in predict mode.")
 
             predictions = {
@@ -374,8 +370,6 @@ def get_model_fn():
 
 
 def main(_):
-    tf.logging.set_verbosity(tf.logging.ERROR)
-
     #### Validate flags
     if FLAGS.save_steps is not None:
         FLAGS.iterations = min(FLAGS.iterations, FLAGS.save_steps)
@@ -426,7 +420,7 @@ def main(_):
                                         yield_single_examples=True):
 
             if len(cur_results) % 1000 == 0:
-                tf.logging.info("Processing example: %d" % (len(cur_results)))
+                logger.info("Processing example: %d" % (len(cur_results)))
 
             unique_id = int(result["feature_id"])
             start_logits = (
@@ -475,9 +469,9 @@ def main(_):
         pred_path = FLAGS.eval_record_file + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:
             f.write(json.dumps(final_predictions, indent=2) + "\n")
-        tf.logging.info("final predictions written to {}".format(pred_path))
+        logger.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
-        tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
+        logger.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
 
 
 if __name__ == "__main__":
