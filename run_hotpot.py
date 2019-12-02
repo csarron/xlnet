@@ -144,7 +144,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder,
     if is_training:
         name_to_features["answer_start"] = tf.FixedLenFeature([], tf.int64)
         name_to_features["answer_end"] = tf.FixedLenFeature([], tf.int64)
-        name_to_features["cls"] = tf.FixedLenFeature([], tf.float32)
+        name_to_features["cls"] = tf.FixedLenFeature([], tf.int64)
 
     tf.logging.info("Input tfrecord file: {}".format(input_file))
 
