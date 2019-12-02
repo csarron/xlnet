@@ -141,8 +141,6 @@ flags.DEFINE_string("target_eval_key", default="best_f1",
 
 FLAGS = flags.FLAGS
 
-logger.info("FLAGS: {}".format(FLAGS.flag_values_dict()))
-
 
 def input_fn_builder(input_file, seq_length, is_training, drop_remainder,
                      num_threads=8):
@@ -378,6 +376,7 @@ def main(_):
     if not FLAGS.do_train and not FLAGS.do_predict:
         raise ValueError(
             "At least one of `do_train` and `do_predict` must be True.")
+    logger.info("FLAGS: {}".format(FLAGS.flag_values_dict()))
 
     ### TPU Configuration
     run_config = model_utils.configure_tpu(FLAGS)
@@ -445,6 +444,16 @@ def main(_):
             unique_id, start_logits, end_logits, cls_logits = cur_result
             item = eval_examples[int(unique_id)]
             orig_id = item['orig_id']
+
+            if 'label' in item:
+                answer_cls = item['label']['cls']
+                if answer_cls == 0:
+                    answers = item['label']['ans']
+                    all_ground_truths[orig_id] = [a[1] for a in answers]
+                else:
+                    answer = 'yes' if answer_cls == 1 else 'no'
+                    all_ground_truths[orig_id] = [answer]
+
             cls_prob = np.exp(cls_logits)
             cls_idx = np.argmax(cls_prob)
 
@@ -475,19 +484,13 @@ def main(_):
                                      predicted_char_start:predicted_char_end]
                     final_predictions[orig_id] = predicted_text
                     final_span_scores[orig_id] = pred_score
-                    if 'label' in item:
-                        answers = item['label']['ans']
-                        all_ground_truths[orig_id] = [a[1] for a in answers]
+
             elif final_cls[orig_id] == 1:
                 # yes
                 final_predictions[orig_id] = 'yes'
-                if 'label' in item:
-                    all_ground_truths[orig_id] = 'yes'
             else:  # cls == 2
                 # no
                 final_predictions[orig_id] = 'no'
-                if 'label' in item:
-                    all_ground_truths[orig_id] = 'no'
 
         pred_path = FLAGS.eval_record_file + '.predictions.json'
         with tf.io.gfile.GFile(pred_path, "w") as f:

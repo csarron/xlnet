@@ -41,7 +41,31 @@ if python run_hotpot.py \
   --warmup_steps=1000 2>&1 | tee data/tune-xlnet-${model}-hotpot-${msl}.log;test "${PIPESTATUS[0]}"; then
 
   echo "sucess run, pause tpu"
-  ctpu pause  --tpu-only --name=bert-tpu --noconf;
+  ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
+else
+  echo "run error, not pause tpu"
+fi
+
+msl=1600
+model=base
+if python run_hotpot.py \
+  --use_tpu=True \
+  --tpu=xlnet-tpu \
+  --num_hosts=1 \
+  --num_core_per_host=8 \
+  --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+  --model_dir="gs://bert-gcs/xlnet/ckpt/hotpot_${model}_${msl}" \
+  --eval_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.tfrecord" \
+  --eval_example_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.examples.jsonl" \
+  --uncased=False \
+  --max_seq_length=${msl} \
+  --do_train=False \
+  --do_predict=True \
+  --predict_batch_size=16 \
+  --iterations=1000 2>&1 | tee data/eval-xlnet-${model}-hotpot-${msl}.log;test "${PIPESTATUS[0]}"; then
+
+  echo "sucess run, pause tpu"
+  ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 else
   echo "run error, not pause tpu"
 fi
