@@ -196,9 +196,9 @@ def main(_):
             unique_id, start_logits, end_logits, cls_logits = cur_result
             item = eval_examples[int(unique_id)]
             orig_id = item['orig_id']
+            # save cls scores and spans scores for tune final outputs
             pred_item = {'pred_cls_scores': [float(s)
-                                             for s in np.exp(cls_logits)]
-                         }
+                                             for s in np.exp(cls_logits)]}
             if 'label' in item:
                 answer_cls = item['label']['cls']
                 pred_item['label_cls'] = answer_cls
