@@ -1,12 +1,10 @@
-python run_squad.py \
+python run_extractive_qa.py \
   --use_tpu=False \
   --model_config_path="data/squad_ckpt/xlnet_config.json" \
-  --spiece_model_file="data/squad_ckpt/spiece.model" \
   --init_checkpoint="squad_ckpt/xlnet_model.ckpt" \
   --model_dir="data/squad_ckpt" \
-  --eval_record_file="/home/qqcao/work/eet/data/datasets/converted/xlnet/squad_v1.1-dev.10781.tfrecord" \
+  --eval_file="/home/qqcao/work/eet/data/datasets/converted/xlnet/squad_v1.1-dev.10781.tfrecord" \
   --eval_example_file="/home/qqcao/work/eet/data/datasets/converted/xlnet/squad_v1.1-dev.10781.examples.jsonl" \
-  --uncased=False \
   --max_seq_length=320 \
   --do_predict=True \
   --predict_batch_size=32 \
@@ -19,7 +17,7 @@ sleep 30
 
 msl=1600
 model=base
-if python run_hotpot.py \
+if python run_extractive_qa.py \
   --use_tpu=True \
   --tpu=xlnet-tpu \
   --num_hosts=1 \
@@ -27,10 +25,9 @@ if python run_hotpot.py \
   --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
   --init_checkpoint="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_model.ckpt" \
   --model_dir="gs://bert-gcs/xlnet/ckpt/hotpot_${model}_${msl}" \
-  --train_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-train.117638.tfrecord" \
-  --eval_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.tfrecord" \
+  --train_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-train.117638.tfrecord" \
+  --eval_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.tfrecord" \
   --eval_example_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.examples.jsonl" \
-  --uncased=False \
   --max_seq_length=${msl} \
   --do_train=True \
   --train_batch_size=16 \
@@ -60,7 +57,7 @@ msl=1600
 model=base
 for step in 12000 13000 14000; do
 
-  if python run_hotpot.py \
+  if python run_extractive_qa.py \
     --use_tpu=True \
     --tpu=xlnet-tpu \
     --num_hosts=1 \
@@ -68,7 +65,7 @@ for step in 12000 13000 14000; do
     --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
     --model_dir="gs://bert-gcs/xlnet/ckpt/hotpot_${model}_${msl}" \
     --checkpoint_path="gs://bert-gcs/xlnet/ckpt/hotpot_${model}_${msl}/model.ckpt-${step}" \
-    --eval_record_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.tfrecord" \
+    --eval_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.tfrecord" \
     --eval_example_file="gs://bert-gcs/eet/datasets/converted/xlnet/${msl}/hotpot-dev.9687.examples.jsonl" \
     --uncased=False \
     --max_seq_length=${msl} \
