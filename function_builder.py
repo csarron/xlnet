@@ -388,7 +388,7 @@ def get_qa_model_fn(FLAGS):
         total_loss = (start_loss + end_loss) * 0.5
 
         cls_loss = compute_loss(
-            outputs["cls_log_probs"], features["cls"], depth=3)
+            outputs["cls_log_probs"], features["cls"], depth=FLAGS.num_classes)
 
         # note(zhiliny): by default multiply the loss by 0.5 so that the scale is
         # comparable to start_loss and end_loss
