@@ -123,7 +123,8 @@ flags.DEFINE_integer("predict_batch_size", default=32,
                      help="batch size for prediction")
 flags.DEFINE_integer("num_classes", default=2,
                      help="batch size for prediction")
-flags.mark_flag_as_required('num_classes')
+flags.DEFINE_string("task", default="squad_v1.1",
+                    help="squad_v1.1 or squad_v2.0 or hotpotqa")
 
 FLAGS = flags.FLAGS
 
@@ -200,8 +201,9 @@ def main(_):
             item = eval_examples[int(unique_id)]
             orig_id = item['orig_id']
             # save cls scores and spans scores for tune final outputs
-            pred_item = {'pred_cls_scores': [float(s)
-                                             for s in np.exp(cls_logits)]}
+            pred_item = {'orig_id': orig_id,
+                         'pred_cls_scores': [float(s) for s in
+                                             np.exp(cls_logits)]}
             if 'label' in item:
                 answer_cls = item['label']['cls']
                 pred_item['label_cls'] = answer_cls
@@ -244,6 +246,7 @@ def main(_):
                     predicted_char_end = end_span[1]
                     predicted_text = item['context'][
                                      predicted_char_start:predicted_char_end]
+                    pred_item['pred_text'] = predicted_text.strip()
                     final_predictions[orig_id] = predicted_text.strip()
                     final_span_scores[orig_id] = pred_score
 
