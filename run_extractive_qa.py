@@ -99,7 +99,7 @@ flags.DEFINE_integer("warmup_steps", default=0, help="number of warmup steps")
 flags.DEFINE_integer("save_steps", default=None,
                      help="Save the model for every save_steps. "
                           "If None, not to save any model.")
-flags.DEFINE_integer("max_save", default=5,
+flags.DEFINE_integer("max_save", default=10,
                      help="Max number of checkpoints to save. "
                           "Use 0 to save all.")
 flags.DEFINE_integer("shuffle_buffer", default=2048,

@@ -88,7 +88,7 @@ gsutil -m cp -r "data/datasets/converted/xlnet/squad_v1.1-dev.10781.examples.jso
 msl=320
 model=large
 dataset_dir="gs://bert-gcs/eet/datasets/converted/xlnet"
-if python run_extractive_qa.py \
+if python run_extractive_qa.py --num_classes=2 \
   --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
   --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
   --init_checkpoint="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_model.ckpt" \
