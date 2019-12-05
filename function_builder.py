@@ -279,7 +279,9 @@ def get_qa_outputs(FLAGS, features, is_training):
 
         ans_feature = tf.layers.dropout(ans_feature, FLAGS.dropout,
                                         training=is_training)
-        cls_logits = tf.layers.dense(ans_feature, 3,  # hotpot has three classes
+        # hotpot has 3 classes,
+        # squad 2.0 has 2 classes
+        cls_logits = tf.layers.dense(ans_feature, FLAGS.num_classes,
                                      kernel_initializer=initializer,
                                      name="cls")
         cls_log_probs = tf.nn.log_softmax(cls_logits, -1)

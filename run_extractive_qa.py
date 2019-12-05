@@ -121,6 +121,9 @@ flags.DEFINE_float("lr_layer_decay_rate", default=0.75,
 flags.DEFINE_bool("do_predict", default=False, help="whether to do predict")
 flags.DEFINE_integer("predict_batch_size", default=32,
                      help="batch size for prediction")
+flags.DEFINE_integer("num_classes", default=2,
+                     help="batch size for prediction")
+flags.mark_flag_as_required('num_classes')
 
 FLAGS = flags.FLAGS
 
