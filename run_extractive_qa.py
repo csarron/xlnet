@@ -254,7 +254,7 @@ def main(_):
             pred_info[int(unique_id)] = pred_item
 
         ckpt = os.path.basename(checkpoint_path) if checkpoint_path else ''
-        prediction_prefix = FLAGS.eval_record_file + ckpt + '.predictions'
+        prediction_prefix = FLAGS.eval_file + ckpt + '.predictions'
         with tf.gfile.Open(prediction_prefix + '.pk', 'wb') as fo:
             pickle.dump(pred_info, fo)
 
