@@ -113,16 +113,21 @@ fi
 sleep 120
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 
-model=base
-for step in 9000 8000 7000; do
-  python run_extractive_qa.py --num_classes=2 --task=squad_v1.1 \
-      --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
-      --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
-      --model_dir="gs://bert-gcs/xlnet/ckpt/squad_${model}" \
-      --checkpoint_path="gs://bert-gcs/xlnet/ckpt/squad_${model}/model.ckpt-${step}" \
-      --eval_file="${dataset_dir}/squad_v1.1-dev.10781.tfrecord" \
-      --eval_example_file="${dataset_dir}/squad_v1.1-dev.10781.examples.jsonl" \
-      --max_seq_length=${msl} --iterations=1000 \
-      --do_predict=True --predict_batch_size=16 \
-      2>&1 | tee data/eval-xlnet-${model}-hotpot-${msl}-ckpt-${step}.log
+for model in base large; do
+  for step in 9000 8000 10000; do
+    python run_extractive_qa.py --num_classes=2 --task=squad_v1.1 \
+        --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
+        --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+        --model_dir="gs://bert-gcs/xlnet/ckpt/squad_${model}" \
+        --checkpoint_path="gs://bert-gcs/xlnet/ckpt/squad_${model}/model.ckpt-${step}" \
+        --eval_file="${dataset_dir}/squad_v1.1-dev.10781.tfrecord" \
+        --eval_example_file="${dataset_dir}/squad_v1.1-dev.10781.examples.jsonl" \
+        --max_seq_length=${msl} --iterations=1000 \
+        --do_predict=True --predict_batch_size=32 \
+        2>&1 | tee data/eval-xlnet-${model}-squad-${msl}-ckpt-${step}.log
+  done
 done
+
+sleep 120
+ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
+
