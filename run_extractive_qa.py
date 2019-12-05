@@ -204,6 +204,31 @@ def main(_):
             pred_item = {'orig_id': orig_id,
                          'pred_cls_scores': [float(s) for s in
                                              np.exp(cls_logits)]}
+
+            # final_cls[orig_id] == 0
+            context_len = len(item['context_spans'])
+            context_start = 0  # self.get_context_start(item)
+            context_end = context_start + context_len
+            # only consider valid context logits
+            x_s = np.exp(start_logits[context_start:context_end])
+            y_s = np.exp(end_logits[context_start:context_end])
+            z = np.outer(x_s, y_s)
+            zn = np.tril(np.triu(z), 30)
+            pred_start, pred_end = np.unravel_index(np.argmax(zn), zn.shape)
+            pred_score = zn[pred_start, pred_end]
+            pred_item['pred_score'] = pred_score
+            pred_item['pred_span'] = [pred_start, pred_end]
+            if pred_score > final_span_scores.get(orig_id, 0):
+                start_span = item['context_spans'][pred_start]
+                predicted_char_start = start_span[0]
+                end_span = item['context_spans'][pred_end]
+                predicted_char_end = end_span[1]
+                predicted_text = item['context'][
+                                 predicted_char_start:predicted_char_end]
+                pred_item['pred_text'] = predicted_text.strip()
+                final_predictions[orig_id] = predicted_text.strip()
+                final_span_scores[orig_id] = pred_score
+
             if 'label' in item:
                 answer_cls = item['label']['cls']
                 pred_item['label_cls'] = answer_cls
@@ -225,35 +250,13 @@ def main(_):
                 final_cls_prob[orig_id] = pred_cls_prob
                 final_cls[orig_id] = cls_idx
 
-            if final_cls[orig_id] == 0:
-                # or len(item['context_tokens'])
-                context_len = len(item['context_spans'])
-                context_start = 0  # self.get_context_start(item)
-                context_end = context_start + context_len
-                # only consider valid context logits
-                x_s = np.exp(start_logits[context_start:context_end])
-                y_s = np.exp(end_logits[context_start:context_end])
-                z = np.outer(x_s, y_s)
-                zn = np.tril(np.triu(z), 30)
-                pred_start, pred_end = np.unravel_index(np.argmax(zn), zn.shape)
-                pred_score = zn[pred_start, pred_end]
-                pred_item['pred_score'] = pred_score
-                pred_item['pred_span'] = [pred_start, pred_end]
-                if pred_score > final_span_scores.get(orig_id, 0):
-                    start_span = item['context_spans'][pred_start]
-                    predicted_char_start = start_span[0]
-                    end_span = item['context_spans'][pred_end]
-                    predicted_char_end = end_span[1]
-                    predicted_text = item['context'][
-                                     predicted_char_start:predicted_char_end]
-                    pred_item['pred_text'] = predicted_text.strip()
-                    final_predictions[orig_id] = predicted_text.strip()
-                    final_span_scores[orig_id] = pred_score
-
-            elif final_cls[orig_id] == 1:
+            if final_cls[orig_id] == 1:
                 # yes for hotpot, impossible for squad 2.0
-                final_predictions[orig_id] = 'yes'
-            else:  # cls == 2
+                if FLAGS.task == 'squad_v2.0':
+                    final_predictions[orig_id] = ''
+                elif FLAGS.task == 'hotpot':
+                    final_predictions[orig_id] = 'yes'
+            elif final_cls[orig_id] == 2:  # cls == 2
                 # no
                 final_predictions[orig_id] = 'no'
 
@@ -265,9 +268,12 @@ def main(_):
             pickle.dump(pred_info, fo)
 
         pred_path = prediction_prefix + '.json'
+        if FLAGS.task == 'hotpot':
+            final_predictions_data = {"answer": final_predictions, "sp": {}}
+        else:
+            final_predictions_data = final_predictions
         with tf.io.gfile.GFile(pred_path, "w") as f:
-            f.write(json.dumps({"answer": final_predictions, "sp": {}},
-                               indent=2) + "\n")
+            f.write(json.dumps(final_predictions_data, indent=2) + "\n")
         tf.logging.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
         tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))

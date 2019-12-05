@@ -48,7 +48,7 @@ sleep 30
 msl=1600
 model=base
 dataset_dir="gs://bert-gcs/eet/datasets/converted/xlnet"
-for step in 12000 13000 14000; do
+for step in 11000 12000 13000 14000; do
 
   if python run_extractive_qa.py \
     --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
@@ -112,3 +112,17 @@ fi
 
 sleep 120
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
+
+model=base
+for step in 9000 8000 7000; do
+  python run_extractive_qa.py --num_classes=2 --task=squad_v1.1 \
+      --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
+      --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+      --model_dir="gs://bert-gcs/xlnet/ckpt/squad_${model}" \
+      --checkpoint_path="gs://bert-gcs/xlnet/ckpt/squad_${model}/model.ckpt-${step}" \
+      --eval_file="${dataset_dir}/squad_v1.1-dev.10781.tfrecord" \
+      --eval_example_file="${dataset_dir}/squad_v1.1-dev.10781.examples.jsonl" \
+      --max_seq_length=${msl} --iterations=1000 \
+      --do_predict=True --predict_batch_size=16 \
+      2>&1 | tee data/eval-xlnet-${model}-hotpot-${msl}-ckpt-${step}.log
+done
