@@ -152,7 +152,7 @@ class XLNetModel(object):
   """A wrapper of the XLNet model used during both pretraining and finetuning."""
 
   def __init__(self, xlnet_config, run_config, input_ids, seg_ids, input_mask,
-               mems=None, perm_mask=None, target_mapping=None, inp_q=None,
+               # mems=None, perm_mask=None, target_mapping=None, inp_q=None,
                **kwargs):
     """
     Args:
@@ -200,21 +200,22 @@ class XLNetModel(object):
         dropout=run_config.dropout,
         dropatt=run_config.dropatt,
 
-        mem_len=run_config.mem_len,
-        reuse_len=run_config.reuse_len,
-        bi_data=run_config.bi_data,
+        # mem_len=run_config.mem_len,
+        # reuse_len=run_config.reuse_len,
+        # bi_data=run_config.bi_data,
         clamp_len=run_config.clamp_len,
-        same_length=run_config.same_length
+        # same_length=run_config.same_length
     )
 
     input_args = dict(
         input_ids=input_ids,
         seg_id=seg_ids,
         input_mask=input_mask,
-        mems=mems,
-        perm_mask=perm_mask,
-        target_mapping=target_mapping,
-        inp_q=inp_q)
+        # mems=mems,
+        # perm_mask=perm_mask,
+        # target_mapping=target_mapping,
+        # inp_q=inp_q,
+    )
     tfm_args.update(input_args)
 
     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):

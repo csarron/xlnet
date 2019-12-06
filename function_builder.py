@@ -49,90 +49,90 @@ def construct_scalar_host_call(
     return host_call_fn, [global_step_tensor] + other_tensors
 
 
-def two_stream_loss(FLAGS, features, labels, mems, is_training):
-    """Pretraining loss with two-stream attention Transformer-XL."""
+# def two_stream_loss(FLAGS, features, labels, mems, is_training):
+#     """Pretraining loss with two-stream attention Transformer-XL."""
+#
+#     # ### Unpack input
+#     mem_name = "mems"
+#     mems = mems.get(mem_name, None)
+#
+#     inp_k = tf.transpose(features["input_k"], [1, 0])
+#     inp_q = tf.transpose(features["input_q"], [1, 0])
+#
+#     seg_id = tf.transpose(features["seg_id"], [1, 0])
+#
+#     inp_mask = None
+#     perm_mask = tf.transpose(features["perm_mask"], [1, 2, 0])
+#
+#     if FLAGS.num_predict is not None:
+#         # [num_predict x tgt_len x bsz]
+#         target_mapping = tf.transpose(features["target_mapping"], [1, 2, 0])
+#     else:
+#         target_mapping = None
+#
+#     # target for LM loss
+#     tgt = tf.transpose(features["target"], [1, 0])
+#
+#     # target mask for LM loss
+#     tgt_mask = tf.transpose(features["target_mask"], [1, 0])
+#
+#     # construct xlnet config and save to model_dir
+#     xlnet_config = xlnet.XLNetConfig(FLAGS=FLAGS)
+#     xlnet_config.to_json(os.path.join(FLAGS.model_dir, "config.json"))
+#
+#     # construct run config from FLAGS
+#     run_config = xlnet.create_run_config(is_training, False, FLAGS)
+#
+#     xlnet_model = xlnet.XLNetModel(
+#         xlnet_config=xlnet_config,
+#         run_config=run_config,
+#         input_ids=inp_k,
+#         seg_ids=seg_id,
+#         input_mask=inp_mask,
+#         mems=mems,
+#         perm_mask=perm_mask,
+#         target_mapping=target_mapping,
+#         inp_q=inp_q)
+#
+#     output = xlnet_model.get_sequence_output()
+#     new_mems = {mem_name: xlnet_model.get_new_memory()}
+#     lookup_table = xlnet_model.get_embedding_table()
+#
+#     initializer = xlnet_model.get_initializer()
+#
+#     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
+#         # LM loss
+#         lm_loss = modeling.lm_loss(
+#             hidden=output,
+#             target=tgt,
+#             n_token=xlnet_config.n_token,
+#             d_model=xlnet_config.d_model,
+#             initializer=initializer,
+#             lookup_table=lookup_table,
+#             tie_weight=True,
+#             bi_data=run_config.bi_data,
+#             use_tpu=run_config.use_tpu)
+#
+#     # ### Quantity to monitor
+#     monitor_dict = {}
+#
+#     if FLAGS.use_bfloat16:
+#         tgt_mask = tf.cast(tgt_mask, tf.float32)
+#         lm_loss = tf.cast(lm_loss, tf.float32)
+#
+#     total_loss = tf.reduce_sum(lm_loss * tgt_mask) / tf.reduce_sum(tgt_mask)
+#     monitor_dict["total_loss"] = total_loss
+#
+#     return total_loss, new_mems, monitor_dict
 
-    # ### Unpack input
-    mem_name = "mems"
-    mems = mems.get(mem_name, None)
 
-    inp_k = tf.transpose(features["input_k"], [1, 0])
-    inp_q = tf.transpose(features["input_q"], [1, 0])
-
-    seg_id = tf.transpose(features["seg_id"], [1, 0])
-
-    inp_mask = None
-    perm_mask = tf.transpose(features["perm_mask"], [1, 2, 0])
-
-    if FLAGS.num_predict is not None:
-        # [num_predict x tgt_len x bsz]
-        target_mapping = tf.transpose(features["target_mapping"], [1, 2, 0])
-    else:
-        target_mapping = None
-
-    # target for LM loss
-    tgt = tf.transpose(features["target"], [1, 0])
-
-    # target mask for LM loss
-    tgt_mask = tf.transpose(features["target_mask"], [1, 0])
-
-    # construct xlnet config and save to model_dir
-    xlnet_config = xlnet.XLNetConfig(FLAGS=FLAGS)
-    xlnet_config.to_json(os.path.join(FLAGS.model_dir, "config.json"))
-
-    # construct run config from FLAGS
-    run_config = xlnet.create_run_config(is_training, False, FLAGS)
-
-    xlnet_model = xlnet.XLNetModel(
-        xlnet_config=xlnet_config,
-        run_config=run_config,
-        input_ids=inp_k,
-        seg_ids=seg_id,
-        input_mask=inp_mask,
-        mems=mems,
-        perm_mask=perm_mask,
-        target_mapping=target_mapping,
-        inp_q=inp_q)
-
-    output = xlnet_model.get_sequence_output()
-    new_mems = {mem_name: xlnet_model.get_new_memory()}
-    lookup_table = xlnet_model.get_embedding_table()
-
-    initializer = xlnet_model.get_initializer()
-
-    with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
-        # LM loss
-        lm_loss = modeling.lm_loss(
-            hidden=output,
-            target=tgt,
-            n_token=xlnet_config.n_token,
-            d_model=xlnet_config.d_model,
-            initializer=initializer,
-            lookup_table=lookup_table,
-            tie_weight=True,
-            bi_data=run_config.bi_data,
-            use_tpu=run_config.use_tpu)
-
-    # ### Quantity to monitor
-    monitor_dict = {}
-
-    if FLAGS.use_bfloat16:
-        tgt_mask = tf.cast(tgt_mask, tf.float32)
-        lm_loss = tf.cast(lm_loss, tf.float32)
-
-    total_loss = tf.reduce_sum(lm_loss * tgt_mask) / tf.reduce_sum(tgt_mask)
-    monitor_dict["total_loss"] = total_loss
-
-    return total_loss, new_mems, monitor_dict
-
-
-def get_loss(FLAGS, features, labels, mems, is_training):
-    """Pretraining loss with two-stream attention Transformer-XL."""
-    if FLAGS.use_bfloat16:
-        with tf.tpu.bfloat16_scope():
-            return two_stream_loss(FLAGS, features, labels, mems, is_training)
-    else:
-        return two_stream_loss(FLAGS, features, labels, mems, is_training)
+# def get_loss(FLAGS, features, labels, mems, is_training):
+#     """Pretraining loss with two-stream attention Transformer-XL."""
+#     if FLAGS.use_bfloat16:
+#         with tf.tpu.bfloat16_scope():
+#             return two_stream_loss(FLAGS, features, labels, mems, is_training)
+#     else:
+#         return two_stream_loss(FLAGS, features, labels, mems, is_training)
 
 
 def get_classification_loss(
@@ -179,41 +179,41 @@ def get_classification_loss(
         return total_loss, per_example_loss, logits
 
 
-def get_regression_loss(
-    FLAGS, features, is_training):
-    """Loss for downstream regression tasks."""
-
-    bsz_per_core = tf.shape(features["input_ids"])[0]
-
-    inp = tf.transpose(features["input_ids"], [1, 0])
-    seg_id = tf.transpose(features["segment_ids"], [1, 0])
-    inp_mask = tf.transpose(features["input_mask"], [1, 0])
-    label = tf.reshape(features["label_ids"], [bsz_per_core])
-
-    xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
-    run_config = xlnet.create_run_config(is_training, True, FLAGS)
-
-    xlnet_model = xlnet.XLNetModel(
-        xlnet_config=xlnet_config,
-        run_config=run_config,
-        input_ids=inp,
-        seg_ids=seg_id,
-        input_mask=inp_mask)
-
-    summary = xlnet_model.get_pooled_out(FLAGS.summary_type,
-                                         FLAGS.use_summ_proj)
-
-    with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
-        per_example_loss, logits = modeling.regression_loss(
-            hidden=summary,
-            labels=label,
-            initializer=xlnet_model.get_initializer(),
-            scope="regression_{}".format(FLAGS.task_name.lower()),
-            return_logits=True)
-
-        total_loss = tf.reduce_mean(per_example_loss)
-
-        return total_loss, per_example_loss, logits
+# def get_regression_loss(
+#     FLAGS, features, is_training):
+#     """Loss for downstream regression tasks."""
+#
+#     bsz_per_core = tf.shape(features["input_ids"])[0]
+#
+#     inp = tf.transpose(features["input_ids"], [1, 0])
+#     seg_id = tf.transpose(features["segment_ids"], [1, 0])
+#     inp_mask = tf.transpose(features["input_mask"], [1, 0])
+#     label = tf.reshape(features["label_ids"], [bsz_per_core])
+#
+#     xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
+#     run_config = xlnet.create_run_config(is_training, True, FLAGS)
+#
+#     xlnet_model = xlnet.XLNetModel(
+#         xlnet_config=xlnet_config,
+#         run_config=run_config,
+#         input_ids=inp,
+#         seg_ids=seg_id,
+#         input_mask=inp_mask)
+#
+#     summary = xlnet_model.get_pooled_out(FLAGS.summary_type,
+#                                          FLAGS.use_summ_proj)
+#
+#     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
+#         per_example_loss, logits = modeling.regression_loss(
+#             hidden=summary,
+#             labels=label,
+#             initializer=xlnet_model.get_initializer(),
+#             scope="regression_{}".format(FLAGS.task_name.lower()),
+#             return_logits=True)
+#
+#         total_loss = tf.reduce_mean(per_example_loss)
+#
+#         return total_loss, per_example_loss, logits
 
 
 def get_qa_outputs(FLAGS, features, is_training):
