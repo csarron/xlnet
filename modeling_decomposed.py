@@ -18,6 +18,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                               use_tpu=True, q_attn_mask=None,
                               ff_activation='relu', use_bfloat16=False,
                               sep_layer=9, c_attn_mask=None,
+                              q_seq_len=None, ctx_seq_len=None,
                               scope='transformer', **kwargs):
     tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
     tf.logging.info('Use float type {}'.format(tf_float))
@@ -37,8 +38,6 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         # batch_size = tf.shape(input_ids)[1]
         # seq_len = tf.shape(input_ids)[0]
         batch_size = tf.shape(q_ids)[1]
-        q_seq_len = tf.shape(q_ids)[0]
-        ctx_seq_len = tf.shape(ctx_ids)[0]
 
         qc_attn_mask = tf.concat([c_attn_mask, q_attn_mask], axis=0)
         # mlen = tf.shape(mems[0])[0] if mems is not None else 0
@@ -244,8 +243,8 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
     context_ids = features["context_ids"]
     q_attn_mask = get_attention_mask(question_ids)
     c_attn_mask = get_attention_mask(context_ids)
-    q_seq_len = tf.shape(question_ids)[1]
-    ctx_seq_len = tf.shape(context_ids)[1]
+    q_seq_len = FLAGS.max_first_length + 2
+    ctx_seq_len = FLAGS.max_seq_length - q_seq_len
     seq_len = q_seq_len + ctx_seq_len
     q_mask_int = tf.cast(tf.cast(question_ids, tf.bool), tf.int32)
     cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1) + ctx_seq_len,
@@ -285,6 +284,8 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         # same_length=run_config.same_length,
         ctx_ids=context_ids,
         q_ids=question_ids,
+        q_seq_len=q_seq_len,
+        ctx_seq_len=ctx_seq_len,
         sep_layer=FLAGS.sep_layer,
         q_attn_mask=q_attn_mask,
         c_attn_mask=c_attn_mask,
