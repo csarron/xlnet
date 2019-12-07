@@ -99,7 +99,7 @@ flags.DEFINE_integer("warmup_steps", default=0, help="number of warmup steps")
 flags.DEFINE_integer("save_steps", default=None,
                      help="Save the model for every save_steps. "
                           "If None, not to save any model.")
-flags.DEFINE_integer("max_save", default=10,
+flags.DEFINE_integer("max_save", default=8,
                      help="Max number of checkpoints to save. "
                           "Use 0 to save all.")
 flags.DEFINE_integer("shuffle_buffer", default=2048,
@@ -278,7 +278,8 @@ def main(_):
         else:
             final_predictions_data = final_predictions
         with tf.io.gfile.GFile(pred_path, "w") as f:
-            f.write(json.dumps(final_predictions_data, indent=2) + "\n")
+            f.write(json.dumps(final_predictions_data, indent=2,
+                               ensure_ascii=False) + "\n")
         tf.logging.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
         tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))

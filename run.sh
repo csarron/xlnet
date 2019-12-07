@@ -134,22 +134,23 @@ ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 msl=320
 dataset_dir="gs://bert-gcs/eet/datasets/converted/exlnet"
 model=base
+for sep_layer in 9 8 6; do
 sep_layer=9
 python run_extractive_qa.py --num_classes=2 --decompose=True --sep_layer=${sep_layer} \
   --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
   --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
   --init_checkpoint="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_model.ckpt" \
-  --model_dir="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}" \
+  --model_dir="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}_s${sep_layer}" \
   --train_file="${dataset_dir}/squad_v2.0-train.134284.tfrecord" \
   --eval_file="${dataset_dir}/squad_v1.1-dev.10803.tfrecord" \
   --eval_example_file="${dataset_dir}/squad_v1.1-dev.10803.jsonl" \
   --do_train=True --train_batch_size=32 \
   --do_predict=True --predict_batch_size=32 \
-  --learning_rate=3e-5 --adam_epsilon=1e-6 \
+  --learning_rate=3e-5 --adam_epsilon=1e-6 --lr_layer_decay_rate=1.0 \
   --iterations=1000 --save_steps=1000 \
-  --train_steps=10000 --warmup_steps=1000 \
+  --train_steps=15000 --warmup_steps=1000 \
   --max_seq_length=${msl} 2>&1 | tee data/tune-exlnet-s${sep_layer}-${model}-squad.log
-
+done
 sleep 60
 echo "sucess run, pause tpu"
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;

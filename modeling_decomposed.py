@@ -193,8 +193,8 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         output_h = tf.concat([q_output_h, ctx_output_h], axis=0)
         for i in range(sep_layer, n_layer):
             r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
-            r_w_bias = r_w_bias if not untie_r else r_w_bias[i]
-            r_r_bias = r_r_bias if not untie_r else r_r_bias[i]
+            r_w_bias_i = r_w_bias if not untie_r else r_w_bias[i]
+            r_r_bias_i = r_r_bias if not untie_r else r_r_bias[i]
             seg_embed_i = seg_embed[i]
             with tf.variable_scope('layer_{}'.format(i)):
                 output_h = rel_multihead_attn(
