@@ -15,9 +15,9 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                               d_head, d_inner, dropout, dropatt, attn_type,
                               is_training, initializer, q_ids, ctx_ids,
                               clamp_len=-1, untie_r=False,
-                              use_tpu=True, input_mask=None,
+                              use_tpu=True, q_attn_mask=None,
                               ff_activation='relu', use_bfloat16=False,
-                              sep_layer=9,
+                              sep_layer=9, c_attn_mask=None,
                               scope='transformer', **kwargs):
     tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
     tf.logging.info('Use float type {}'.format(tf_float))
@@ -40,6 +40,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         q_seq_len = tf.shape(q_ids)[0]
         ctx_seq_len = tf.shape(ctx_ids)[0]
 
+        qc_attn_mask = tf.concat([c_attn_mask, q_attn_mask], axis=0)
         # mlen = tf.shape(mems[0])[0] if mems is not None else 0
         # mlen = 0
         # klen = mlen + seq_len
@@ -140,7 +141,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     r_s_bias=r_s_bias_i,
                     seg_mat=ctx_seg_mat,
                     seg_embed=seg_embed_i,
-                    attn_mask=None,
+                    attn_mask=c_attn_mask,
                     mems=None,
                     d_model=d_model,
                     n_head=n_head,
@@ -169,7 +170,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     r_s_bias=r_s_bias_i,
                     seg_mat=q_seg_mat,
                     seg_embed=seg_embed_i,
-                    attn_mask=None,
+                    attn_mask=q_attn_mask,
                     mems=None,
                     d_model=d_model,
                     n_head=n_head,
@@ -206,7 +207,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     r_r_bias=r_r_bias,
                     r_s_bias=r_s_bias_i,
                     seg_embed=seg_embed_i,
-                    attn_mask=None,
+                    attn_mask=qc_attn_mask,
                     mems=None,
                     d_model=d_model,
                     n_head=n_head,
@@ -231,9 +232,10 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
 
 
 def get_attention_mask(input_ids):
+    # Batch_size, Seq_len
     input_mask = tf.cast(tf.cast(input_ids, tf.bool), tf.float32)
-    attention_mask = tf.expand_dims(input_mask, axis=1)
-    # `attention_mask` = [B, 1, F]
+    attention_mask = tf.expand_dims(input_mask, axis=2)
+    # `attention_mask` = [B, F, 1]
     return attention_mask
 
 
@@ -242,16 +244,19 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
     context_ids = features["context_ids"]
     q_attn_mask = get_attention_mask(question_ids)
     c_attn_mask = get_attention_mask(context_ids)
-    question_ids = tf.transpose(question_ids, [1, 0])
-
+    q_seq_len = tf.shape(question_ids)[1]
+    ctx_seq_len = tf.shape(context_ids)[1]
+    seq_len = q_seq_len + ctx_seq_len
     q_mask_int = tf.cast(tf.cast(question_ids, tf.bool), tf.int32)
-    cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1), [-1])
-    # p_mask = tf.cast(tf.cast(seg_id, tf.bool), tf.float32)
-    # input_ids = tf.transpose(input_ids, [1, 0])
-    # input_mask = 1 - tf.cast(input_mask_int, tf.float32)
-    # input_mask = tf.transpose(input_mask, [1, 0])
-    # seg_id = tf.transpose(seg_id, [1, 0])
-    seq_len = tf.shape(question_ids)[0]
+    cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1) + ctx_seq_len,
+                           [-1])
+    # 0 for mask out
+    p_mask = tf.cast(tf.cast(context_ids, tf.bool), tf.float32)
+    question_ids = tf.transpose(question_ids, [1, 0])
+    context_ids = tf.transpose(context_ids, [1, 0])
+    q_attn_mask = tf.transpose(q_attn_mask, [1, 0])
+    c_attn_mask = tf.transpose(c_attn_mask, [1, 0])
+
     xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
     run_config = xlnet.create_run_config(is_training, True, FLAGS)
     initializer = xlnet._get_initializer(run_config)
@@ -281,9 +286,59 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         ctx_ids=context_ids,
         q_ids=question_ids,
         sep_layer=FLAGS.sep_layer,
+        q_attn_mask=q_attn_mask,
+        c_attn_mask=c_attn_mask,
     )
 
     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
         output = transformer_xl_decomposed(**tfm_args)
 
-    # do something with output
+    return_dict = {}
+    with tf.variable_scope("logits"):
+        # logits: seq, batch_size, 2
+        logits = tf.layers.dense(output, 2, kernel_initializer=initializer)
+
+        # logits: 2, batch_size, seq
+        logits = tf.transpose(logits, [2, 1, 0])
+
+        # start_logits: batch_size, seq
+        # end_logits: batch_size, seq
+        start_logits, end_logits = tf.unstack(logits, axis=0)
+
+        start_logits_masked = start_logits * p_mask - 1e30 * (1 - p_mask)
+        start_log_probs = tf.nn.log_softmax(start_logits_masked, -1)
+
+        end_logits_masked = end_logits * p_mask - 1e30 * (1 - p_mask)
+        end_log_probs = tf.nn.log_softmax(end_logits_masked, -1)
+
+    if is_training:
+        return_dict["start_log_probs"] = start_log_probs
+        return_dict["end_log_probs"] = end_log_probs
+    else:
+        return_dict["start_logits"] = start_logits
+        return_dict["end_logits"] = end_logits
+
+    # an additional layer to predict answer class, 0: span, 1:yes, 2:no
+    with tf.variable_scope("answer_class"):
+        # get the representation of CLS
+        cls_index = tf.one_hot(cls_index, seq_len, axis=-1, dtype=tf.float32)
+        cls_feature = tf.einsum("lbh,bl->bh", output, cls_index)
+        ans_feature = tf.layers.dense(cls_feature, xlnet_config.d_model,
+                                      activation=tf.tanh,
+                                      kernel_initializer=initializer,
+                                      name='pooler')
+
+        ans_feature = tf.layers.dropout(ans_feature, FLAGS.dropout,
+                                        training=is_training)
+        # hotpot has 3 classes,
+        # squad 2.0 has 2 classes
+        cls_logits = tf.layers.dense(ans_feature, FLAGS.num_classes,
+                                     kernel_initializer=initializer,
+                                     name="cls")
+        cls_log_probs = tf.nn.log_softmax(cls_logits, -1)
+    if is_training:
+        return_dict["cls_log_probs"] = cls_log_probs
+    else:
+        return_dict["cls_logits"] = cls_logits
+
+    return return_dict
