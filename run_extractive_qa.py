@@ -128,6 +128,8 @@ flags.DEFINE_string("task", default="squad_v1.1",
 flags.DEFINE_bool("decompose", default=False, help="whether to use decompose")
 flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
+flags.DEFINE_integer("max_first_length", default=25,
+                     help="max_first_length")
 
 FLAGS = flags.FLAGS
 

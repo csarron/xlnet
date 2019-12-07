@@ -432,13 +432,21 @@ def qa_input_fn_builder(FLAGS, is_training,
                         num_threads=8):
     """Creates an `input_fn` closure to be passed to TPUEstimator."""
     input_file = FLAGS.train_file if is_training else FLAGS.eval_file
-    seq_length = FLAGS.max_seq_length
-
-    name_to_features = {
-        "feature_id": tf.FixedLenFeature([], tf.int64),
-        "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-    }
+    if FLAGS.decompose:
+        max_q_length = FLAGS.max_first_length + 2
+        max_c_length = FLAGS.max_seq_length - max_q_length
+        name_to_features = {
+            "feature_id": tf.io.FixedLenFeature([], tf.int64),
+            "question_ids": tf.io.FixedLenFeature([max_q_length], tf.int64),
+            "context_ids": tf.io.FixedLenFeature([max_c_length], tf.int64),
+        }
+    else:
+        seq_length = FLAGS.max_seq_length
+        name_to_features = {
+            "feature_id": tf.FixedLenFeature([], tf.int64),
+            "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
+            "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
+        }
 
     if is_training:
         name_to_features["answer_start"] = tf.FixedLenFeature([], tf.int64)
