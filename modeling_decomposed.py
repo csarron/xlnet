@@ -14,10 +14,10 @@ from modeling import relative_positional_encoding
 def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                               d_head, d_inner, dropout, dropatt, attn_type,
                               is_training, initializer, q_ids, ctx_ids,
-                              clamp_len=-1, untie_r=False,
-                              use_tpu=True, q_attn_mask=None,
+                              clamp_len=-1, untie_r=False, use_tpu=True,
                               ff_activation='relu', use_bfloat16=False,
-                              sep_layer=9, c_attn_mask=None,
+                              sep_layer=9, q_attn_mask=None,
+                              c_attn_mask=None, qc_attn_mask=None,
                               q_seq_len=None, ctx_seq_len=None,
                               scope='transformer', **kwargs):
     tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
@@ -39,7 +39,6 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         # seq_len = tf.shape(input_ids)[0]
         batch_size = tf.shape(q_ids)[1]
 
-        qc_attn_mask = tf.concat([c_attn_mask, q_attn_mask], axis=0)
         # mlen = tf.shape(mems[0])[0] if mems is not None else 0
         # mlen = 0
         # klen = mlen + seq_len
@@ -230,33 +229,41 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         return output
 
 
-def get_attention_mask(input_ids):
-    # Seq_len, Batch_size
+def get_attention_mask(input_ids, seq_len):
+    # `non_tgt_mask` = [Seq_len, Seq_len]
+    non_tgt_mask = -tf.eye(seq_len, dtype=tf.float32)
+    # `input_mask` = [Seq_len, Batch_size]
     input_mask = 1 - tf.cast(tf.cast(input_ids, tf.bool), tf.float32)
-    attention_mask = tf.expand_dims(input_mask, axis=1)
-    attention_mask = tf.expand_dims(attention_mask, axis=3)
-    # `attention_mask` = [F, 1, B, 1]
-    return attention_mask
+    # `data_mask` = [1, Seq_len, Batch_size]
+    data_mask = input_mask[None]
+    # `attn_mask` = [1, Seq_len, Batch_size, 1]
+    attn_mask = data_mask[:, :, :, None]
+    # `non_tgt_mask` = [Seq_len, Seq_len, Batch_size, 1]
+    non_tgt_mask = tf.cast((attn_mask + non_tgt_mask[:, :, None, None]) > 0,
+                           dtype=tf.float32)
+    return non_tgt_mask
 
 
 def get_decomposed_qa_outputs(FLAGS, features, is_training):
     question_ids = features["question_ids"]
     context_ids = features["context_ids"]
+    seq_len = FLAGS.max_seq_length
     q_seq_len = FLAGS.max_first_length + 2
-    ctx_seq_len = FLAGS.max_seq_length - q_seq_len
-    seq_len = q_seq_len + ctx_seq_len
+    ctx_seq_len = seq_len - q_seq_len
     q_mask_int = tf.cast(tf.cast(question_ids, tf.bool), tf.int32)
     cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1) + ctx_seq_len,
                            [-1])
     # 0 for mask out
-    q_zeros = tf.zeros_like(question_ids)
-    p_ids = tf.concat([context_ids, q_zeros], axis=1)
-    p_mask = tf.cast(tf.cast(p_ids, tf.bool), tf.float32)
+    # q_zeros = tf.zeros_like(question_ids)
+    # p_ids = tf.concat([context_ids, q_zeros], axis=1)
+    # p_mask = tf.cast(tf.cast(p_ids, tf.bool), tf.float32)
     question_ids = tf.transpose(question_ids, [1, 0])
     context_ids = tf.transpose(context_ids, [1, 0])
 
-    q_attn_mask = get_attention_mask(question_ids)
-    c_attn_mask = get_attention_mask(context_ids)
+    q_attn_mask = get_attention_mask(question_ids, q_seq_len)
+    c_attn_mask = get_attention_mask(context_ids, ctx_seq_len)
+    qc_attn_mask = get_attention_mask(tf.concat([context_ids, question_ids],
+                                                axis=0), seq_len)
 
     xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
     run_config = xlnet.create_run_config(is_training, True, FLAGS)
@@ -291,6 +298,7 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         sep_layer=FLAGS.sep_layer,
         q_attn_mask=q_attn_mask,
         c_attn_mask=c_attn_mask,
+        qc_attn_mask=qc_attn_mask,
     )
 
     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
@@ -308,11 +316,13 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         # end_logits: batch_size, seq
         start_logits, end_logits = tf.unstack(logits, axis=0)
 
-        start_logits_masked = start_logits * p_mask - 1e30 * (1 - p_mask)
-        start_log_probs = tf.nn.log_softmax(start_logits_masked, -1)
+        # start_logits_masked = start_logits * p_mask - 1e30 * (1 - p_mask)
+        # start_log_probs = tf.nn.log_softmax(start_logits_masked, -1)
+        start_log_probs = tf.nn.log_softmax(start_logits, -1)
 
-        end_logits_masked = end_logits * p_mask - 1e30 * (1 - p_mask)
-        end_log_probs = tf.nn.log_softmax(end_logits_masked, -1)
+        # end_logits_masked = end_logits * p_mask - 1e30 * (1 - p_mask)
+        # end_log_probs = tf.nn.log_softmax(end_logits_masked, -1)
+        end_log_probs = tf.nn.log_softmax(end_logits, -1)
 
     if is_training:
         return_dict["start_log_probs"] = start_log_probs

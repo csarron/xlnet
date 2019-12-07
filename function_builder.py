@@ -403,6 +403,9 @@ def get_qa_model_fn(FLAGS):
 
         monitor_dict = {}
         monitor_dict["lr"] = learning_rate
+        monitor_dict["loss/start"] = start_loss
+        monitor_dict["loss/end"] = end_loss
+        monitor_dict["loss/cls"] = cls_loss
 
         # ### load pretrained models
         scaffold_fn = model_utils.init_from_checkpoint(FLAGS)

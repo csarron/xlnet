@@ -131,3 +131,43 @@ done
 sleep 120
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 
+msl=320
+dataset_dir="gs://bert-gcs/eet/datasets/converted/exlnet"
+model=base
+sep_layer=9
+python run_extractive_qa.py --num_classes=2 --decompose=True --sep_layer=${sep_layer} \
+  --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
+  --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+  --init_checkpoint="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_model.ckpt" \
+  --model_dir="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}" \
+  --train_file="${dataset_dir}/squad_v2.0-train.134284.tfrecord" \
+  --eval_file="${dataset_dir}/squad_v1.1-dev.10803.tfrecord" \
+  --eval_example_file="${dataset_dir}/squad_v1.1-dev.10803.jsonl" \
+  --do_train=True --train_batch_size=32 \
+  --do_predict=True --predict_batch_size=32 \
+  --learning_rate=3e-5 --adam_epsilon=1e-6 \
+  --iterations=1000 --save_steps=1000 \
+  --train_steps=10000 --warmup_steps=1000 \
+  --max_seq_length=${msl} 2>&1 | tee data/tune-exlnet-s${sep_layer}-${model}-squad.log
+
+sleep 60
+echo "sucess run, pause tpu"
+ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
+
+ctpu up --tpu-size=v3-8 --tpu-only --name=xlnet-tpu --tf-version 1.15 --noconf --require-permissions
+for model in base; do
+  for step in 10000; do
+    python run_extractive_qa.py --num_classes=2 --decompose=True --sep_layer=${sep_layer} \
+        --use_tpu=True --tpu=xlnet-tpu --num_hosts=1 --num_core_per_host=8 \
+        --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+  --model_dir="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}" \
+        --checkpoint_path="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}/model.ckpt-${step}" \
+  --eval_file="${dataset_dir}/squad_v1.1-dev.10803.tfrecord" \
+  --eval_example_file="${dataset_dir}/squad_v1.1-dev.10803.jsonl" \
+        --max_seq_length=${msl} --iterations=1000 \
+        --do_predict=True --predict_batch_size=32 \
+        2>&1 | tee data/eval-exlnet-${model}-squad-ckpt-${step}.log
+  done
+done
+
+gsutil -m cp -r "data/datasets/converted/exlnet" "gs://bert-gcs/eet/datasets/converted/exlnet"
