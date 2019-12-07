@@ -231,18 +231,17 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
 
 
 def get_attention_mask(input_ids):
-    # Batch_size, Seq_len
-    input_mask = tf.cast(tf.cast(input_ids, tf.bool), tf.float32)
-    attention_mask = tf.expand_dims(input_mask, axis=2)
-    # `attention_mask` = [B, F, 1]
+    # Seq_len, Batch_size
+    input_mask = 1 - tf.cast(tf.cast(input_ids, tf.bool), tf.float32)
+    attention_mask = tf.expand_dims(input_mask, axis=1)
+    attention_mask = tf.expand_dims(attention_mask, axis=3)
+    # `attention_mask` = [F, 1, B, 1]
     return attention_mask
 
 
 def get_decomposed_qa_outputs(FLAGS, features, is_training):
     question_ids = features["question_ids"]
     context_ids = features["context_ids"]
-    q_attn_mask = get_attention_mask(question_ids)
-    c_attn_mask = get_attention_mask(context_ids)
     q_seq_len = FLAGS.max_first_length + 2
     ctx_seq_len = FLAGS.max_seq_length - q_seq_len
     seq_len = q_seq_len + ctx_seq_len
@@ -253,8 +252,9 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
     p_mask = tf.cast(tf.cast(context_ids, tf.bool), tf.float32)
     question_ids = tf.transpose(question_ids, [1, 0])
     context_ids = tf.transpose(context_ids, [1, 0])
-    q_attn_mask = tf.transpose(q_attn_mask, [1, 0])
-    c_attn_mask = tf.transpose(c_attn_mask, [1, 0])
+
+    q_attn_mask = get_attention_mask(question_ids)
+    c_attn_mask = get_attention_mask(context_ids)
 
     xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
     run_config = xlnet.create_run_config(is_training, True, FLAGS)
