@@ -128,15 +128,15 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         # mems = [None] * n_layer
         for i in range(sep_layer):
             r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
-            r_w_bias = r_w_bias if not untie_r else r_w_bias[i]
-            r_r_bias = r_r_bias if not untie_r else r_r_bias[i]
+            r_w_bias_i = r_w_bias if not untie_r else r_w_bias[i]
+            r_r_bias_i = r_r_bias if not untie_r else r_r_bias[i]
             seg_embed_i = seg_embed[i]
             with tf.variable_scope('layer_{}'.format(i)):
                 ctx_output_h = rel_multihead_attn(
                     h=ctx_output_h,
                     r=ctx_pos_emb,
-                    r_w_bias=r_w_bias,
-                    r_r_bias=r_r_bias,
+                    r_w_bias=r_w_bias_i,
+                    r_r_bias=r_r_bias_i,
                     r_s_bias=r_s_bias_i,
                     seg_mat=ctx_seg_mat,
                     seg_embed=seg_embed_i,
@@ -164,8 +164,8 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                 q_output_h = rel_multihead_attn(
                     h=q_output_h,
                     r=q_pos_emb,
-                    r_w_bias=r_w_bias,
-                    r_r_bias=r_r_bias,
+                    r_w_bias=r_w_bias_i,
+                    r_r_bias=r_r_bias_i,
                     r_s_bias=r_s_bias_i,
                     seg_mat=q_seg_mat,
                     seg_embed=seg_embed_i,
@@ -202,8 +202,8 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     h=output_h,
                     r=pos_emb,
                     seg_mat=seg_mat,
-                    r_w_bias=r_w_bias,
-                    r_r_bias=r_r_bias,
+                    r_w_bias=r_w_bias_i,
+                    r_r_bias=r_r_bias_i,
                     r_s_bias=r_s_bias_i,
                     seg_embed=seg_embed_i,
                     attn_mask=qc_attn_mask,
@@ -249,7 +249,9 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
     cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1) + ctx_seq_len,
                            [-1])
     # 0 for mask out
-    p_mask = tf.cast(tf.cast(context_ids, tf.bool), tf.float32)
+    q_zeros = tf.zeros_like(question_ids)
+    p_ids = tf.concat([context_ids, q_zeros], axis=1)
+    p_mask = tf.cast(tf.cast(p_ids, tf.bool), tf.float32)
     question_ids = tf.transpose(question_ids, [1, 0])
     context_ids = tf.transpose(context_ids, [1, 0])
 

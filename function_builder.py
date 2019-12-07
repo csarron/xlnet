@@ -374,7 +374,7 @@ def get_qa_model_fn(FLAGS):
             return output_spec
 
         # ## Compute loss
-        seq_length = tf.shape(features["input_ids"])[1]
+        seq_length = FLAGS.max_seq_length
 
         def compute_loss(log_probs, positions, depth=seq_length):
             one_hot_positions = tf.one_hot(
