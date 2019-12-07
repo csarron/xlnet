@@ -190,7 +190,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     reuse=True)
 
         # concat all q, ctx related variables
-        output_h = tf.concat([q_output_h, ctx_output_h], axis=0)
+        output_h = tf.concat([ctx_output_h, q_output_h], axis=0)
         for i in range(sep_layer, n_layer):
             r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
             r_w_bias_i = r_w_bias if not untie_r else r_w_bias[i]
