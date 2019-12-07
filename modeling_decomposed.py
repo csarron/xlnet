@@ -1,0 +1,289 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import tensorflow as tf
+
+import xlnet
+from modeling import embedding_lookup
+from modeling import positionwise_ffn
+from modeling import rel_multihead_attn
+from modeling import relative_positional_encoding
+
+
+def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
+                              d_head, d_inner, dropout, dropatt, attn_type,
+                              is_training, initializer, q_ids, ctx_ids,
+                              clamp_len=-1, untie_r=False,
+                              use_tpu=True, input_mask=None,
+                              ff_activation='relu', use_bfloat16=False,
+                              sep_layer=9,
+                              scope='transformer', **kwargs):
+    tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
+    tf.logging.info('Use float type {}'.format(tf_float))
+    # new_mems = []
+    with tf.variable_scope(scope):
+        if untie_r:
+            r_w_bias = tf.get_variable('r_w_bias', [n_layer, n_head, d_head],
+                                       dtype=tf_float, initializer=initializer)
+            r_r_bias = tf.get_variable('r_r_bias', [n_layer, n_head, d_head],
+                                       dtype=tf_float, initializer=initializer)
+        else:
+            r_w_bias = tf.get_variable('r_w_bias', [n_head, d_head],
+                                       dtype=tf_float, initializer=initializer)
+            r_r_bias = tf.get_variable('r_r_bias', [n_head, d_head],
+                                       dtype=tf_float, initializer=initializer)
+
+        # batch_size = tf.shape(input_ids)[1]
+        # seq_len = tf.shape(input_ids)[0]
+        batch_size = tf.shape(q_ids)[1]
+        q_seq_len = tf.shape(q_ids)[0]
+        ctx_seq_len = tf.shape(ctx_ids)[0]
+
+        # mlen = tf.shape(mems[0])[0] if mems is not None else 0
+        # mlen = 0
+        # klen = mlen + seq_len
+
+        # #### Attention mask
+        attn_mask = None
+
+        # data_mask = input_mask[None]
+        # if data_mask is not None:
+        # all mems can be attended to
+        # mems_mask = tf.zeros([tf.shape(data_mask)[0], mlen, batch_size],
+        #                      dtype=tf_float)
+        # data_mask = tf.concat([mems_mask, data_mask], 1)
+        # if attn_mask is None:
+        #     attn_mask = data_mask[:, :, :, None]
+        # else:
+        #     attn_mask += data_mask[:, :, :, None]
+        # non_tgt_mask = None
+
+        # #### Word embedding
+        q_emb, lookup_table = embedding_lookup(
+            x=q_ids, n_token=n_token, d_embed=d_model,
+            initializer=initializer,
+            use_tpu=use_tpu, dtype=tf_float, scope='word_embedding')
+
+        c_emb, _ = embedding_lookup(
+            x=ctx_ids, n_token=n_token, d_embed=d_model,
+            initializer=initializer,
+            use_tpu=use_tpu, dtype=tf_float,
+            reuse=True, scope='word_embedding')
+
+        q_output_h = tf.layers.dropout(q_emb, dropout, training=is_training)
+        ctx_output_h = tf.layers.dropout(c_emb, dropout, training=is_training)
+
+        # #### Segment embedding
+        if untie_r:
+            r_s_bias = tf.get_variable('r_s_bias',
+                                       [n_layer, n_head, d_head],
+                                       dtype=tf_float,
+                                       initializer=initializer)
+        else:
+            # default case (tie)
+            r_s_bias = tf.get_variable('r_s_bias', [n_head, d_head],
+                                       dtype=tf_float,
+                                       initializer=initializer)
+
+        seg_embed = tf.get_variable('seg_embed',
+                                    [n_layer, 2, n_head, d_head],
+                                    dtype=tf_float, initializer=initializer)
+
+        # Convert `seg_id` to one-hot `seg_mat`
+        # mem_pad = tf.zeros([mlen, batch_size], dtype=tf.int32)
+        # cat_ids = tf.concat([mem_pad, seg_id], 0)
+
+        # `1` indicates not in the same segment [qlen x klen x bsz]
+        ctx_seg_ids = tf.zeros_like(ctx_ids, dtype=tf.int32)
+        ctx_seg_mat = tf.cast(tf.logical_not(tf.equal(ctx_seg_ids[:, None],
+                                                      ctx_seg_ids[None, :])),
+                              tf.int32)
+        ctx_seg_mat = tf.one_hot(ctx_seg_mat, 2, dtype=tf_float)
+        q_seg_ids = tf.ones_like(q_ids, dtype=tf.int32)
+        q_seg_mat = tf.cast(tf.logical_not(tf.equal(q_seg_ids[:, None],
+                                                    q_seg_ids[None, :])),
+                            tf.int32)
+        q_seg_mat = tf.one_hot(q_seg_mat, 2, dtype=tf_float)
+
+        seg_ids = tf.concat([ctx_seg_ids, q_seg_ids], axis=0)
+        seg_mat = tf.cast(
+            tf.logical_not(tf.equal(seg_ids[:, None], seg_ids[None, :])),
+            tf.int32)
+        seg_mat = tf.one_hot(seg_mat, 2, dtype=tf_float)
+
+        # #### Positional encoding
+        q_pos_emb = relative_positional_encoding(
+            q_seq_len, q_seq_len, d_model, clamp_len, attn_type,
+            bsz=batch_size, dtype=tf_float)
+        q_pos_emb = tf.layers.dropout(q_pos_emb, dropout, training=is_training)
+
+        ctx_pos_emb = relative_positional_encoding(
+            ctx_seq_len, ctx_seq_len, d_model, clamp_len, attn_type,
+            bsz=batch_size, dtype=tf_float)
+        ctx_pos_emb = tf.layers.dropout(ctx_pos_emb, dropout,
+                                        training=is_training)
+        pos_emb = tf.concat([ctx_pos_emb, q_pos_emb], axis=0)
+        # #### Attention layers
+        # mems = [None] * n_layer
+        for i in range(sep_layer):
+            r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
+            r_w_bias = r_w_bias if not untie_r else r_w_bias[i]
+            r_r_bias = r_r_bias if not untie_r else r_r_bias[i]
+            seg_embed_i = seg_embed[i]
+            with tf.variable_scope('layer_{}'.format(i)):
+                ctx_output_h = rel_multihead_attn(
+                    h=ctx_output_h,
+                    r=ctx_pos_emb,
+                    r_w_bias=r_w_bias,
+                    r_r_bias=r_r_bias,
+                    r_s_bias=r_s_bias_i,
+                    seg_mat=ctx_seg_mat,
+                    seg_embed=seg_embed_i,
+                    attn_mask=None,
+                    mems=None,
+                    d_model=d_model,
+                    n_head=n_head,
+                    d_head=d_head,
+                    dropout=dropout,
+                    dropatt=dropatt,
+                    is_training=is_training,
+                    kernel_initializer=initializer,
+                    reuse=False)
+
+                ctx_output_h = positionwise_ffn(
+                    inp=ctx_output_h,
+                    d_model=d_model,
+                    d_inner=d_inner,
+                    dropout=dropout,
+                    kernel_initializer=initializer,
+                    activation_type=ff_activation,
+                    is_training=is_training,
+                    reuse=False)
+
+                q_output_h = rel_multihead_attn(
+                    h=q_output_h,
+                    r=q_pos_emb,
+                    r_w_bias=r_w_bias,
+                    r_r_bias=r_r_bias,
+                    r_s_bias=r_s_bias_i,
+                    seg_mat=q_seg_mat,
+                    seg_embed=seg_embed_i,
+                    attn_mask=None,
+                    mems=None,
+                    d_model=d_model,
+                    n_head=n_head,
+                    d_head=d_head,
+                    dropout=dropout,
+                    dropatt=dropatt,
+                    is_training=is_training,
+                    kernel_initializer=initializer,
+                    reuse=True)
+
+                q_output_h = positionwise_ffn(
+                    inp=q_output_h,
+                    d_model=d_model,
+                    d_inner=d_inner,
+                    dropout=dropout,
+                    kernel_initializer=initializer,
+                    activation_type=ff_activation,
+                    is_training=is_training,
+                    reuse=True)
+
+        # concat all q, ctx related variables
+        output_h = tf.concat([q_output_h, ctx_output_h], axis=0)
+        for i in range(sep_layer, n_layer):
+            r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
+            r_w_bias = r_w_bias if not untie_r else r_w_bias[i]
+            r_r_bias = r_r_bias if not untie_r else r_r_bias[i]
+            seg_embed_i = seg_embed[i]
+            with tf.variable_scope('layer_{}'.format(i)):
+                output_h = rel_multihead_attn(
+                    h=output_h,
+                    r=pos_emb,
+                    seg_mat=seg_mat,
+                    r_w_bias=r_w_bias,
+                    r_r_bias=r_r_bias,
+                    r_s_bias=r_s_bias_i,
+                    seg_embed=seg_embed_i,
+                    attn_mask=None,
+                    mems=None,
+                    d_model=d_model,
+                    n_head=n_head,
+                    d_head=d_head,
+                    dropout=dropout,
+                    dropatt=dropatt,
+                    is_training=is_training,
+                    kernel_initializer=initializer,
+                    reuse=False)
+
+                output_h = positionwise_ffn(
+                    inp=output_h,
+                    d_model=d_model,
+                    d_inner=d_inner,
+                    dropout=dropout,
+                    kernel_initializer=initializer,
+                    activation_type=ff_activation,
+                    is_training=is_training,
+                    reuse=False)
+        output = tf.layers.dropout(output_h, dropout, training=is_training)
+        return output
+
+
+def get_attention_mask(input_ids):
+    input_mask = tf.cast(tf.cast(input_ids, tf.bool), tf.float32)
+    attention_mask = tf.expand_dims(input_mask, axis=1)
+    # `attention_mask` = [B, 1, F]
+    return attention_mask
+
+
+def get_decomposed_qa_outputs(FLAGS, features, is_training):
+    question_ids = features["question_ids"]
+    context_ids = features["context_ids"]
+    q_attn_mask = get_attention_mask(question_ids)
+    c_attn_mask = get_attention_mask(context_ids)
+    question_ids = tf.transpose(question_ids, [1, 0])
+
+    q_mask_int = tf.cast(tf.cast(question_ids, tf.bool), tf.int32)
+    cls_index = tf.reshape(tf.reduce_sum(q_mask_int, axis=1), [-1])
+    # p_mask = tf.cast(tf.cast(seg_id, tf.bool), tf.float32)
+    # input_ids = tf.transpose(input_ids, [1, 0])
+    # input_mask = 1 - tf.cast(input_mask_int, tf.float32)
+    # input_mask = tf.transpose(input_mask, [1, 0])
+    # seg_id = tf.transpose(seg_id, [1, 0])
+    seq_len = tf.shape(question_ids)[0]
+    xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
+    run_config = xlnet.create_run_config(is_training, True, FLAGS)
+    initializer = xlnet._get_initializer(run_config)
+    tfm_args = dict(
+        n_token=xlnet_config.n_token,
+        initializer=initializer,
+        attn_type="bi",
+        n_layer=xlnet_config.n_layer,
+        d_model=xlnet_config.d_model,
+        n_head=xlnet_config.n_head,
+        d_head=xlnet_config.d_head,
+        d_inner=xlnet_config.d_inner,
+        ff_activation=xlnet_config.ff_activation,
+        untie_r=xlnet_config.untie_r,
+
+        is_training=run_config.is_training,
+        use_bfloat16=run_config.use_bfloat16,
+        use_tpu=run_config.use_tpu,
+        dropout=run_config.dropout,
+        dropatt=run_config.dropatt,
+
+        # mem_len=run_config.mem_len,
+        # reuse_len=run_config.reuse_len,
+        # bi_data=run_config.bi_data,
+        clamp_len=run_config.clamp_len,
+        # same_length=run_config.same_length,
+        ctx_ids=context_ids,
+        q_ids=question_ids,
+        sep_layer=FLAGS.sep_layer,
+    )
+
+    with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
+        output = transformer_xl_decomposed(**tfm_args)
+
+    # do something with output

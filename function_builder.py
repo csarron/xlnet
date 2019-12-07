@@ -3,14 +3,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-
 import numpy as np
 import tensorflow as tf
 
 import model_utils
 import modeling
 import xlnet
+from modeling_decomposed import get_decomposed_qa_outputs
 from util import logger
 
 
@@ -340,7 +339,12 @@ def get_qa_model_fn(FLAGS):
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
         # ### Get loss from inputs
-        outputs = get_qa_outputs(FLAGS, features, is_training)
+        if FLAGS.decompose:
+            logger.info('running in decompose mode')
+            outputs = get_decomposed_qa_outputs(FLAGS, features, is_training)
+        else:
+            logger.info('running in normal mode')
+            outputs = get_qa_outputs(FLAGS, features, is_training)
 
         # ### Check model parameters
         num_params = sum([np.prod(v.shape) for v in tf.trainable_variables()])
