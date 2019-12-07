@@ -514,19 +514,18 @@ def transformer_xl(input_ids, n_token, n_layer, d_model, n_head,
             else:
                 attn_mask += data_mask[:, :, :, None]
 
-        # if attn_mask is not None:
-        #     attn_mask = tf.cast(attn_mask > 0, dtype=tf_float)
+        if attn_mask is not None:
+            attn_mask = tf.cast(attn_mask > 0, dtype=tf_float)
 
-        # if attn_mask is not None:
-        #     non_tgt_mask = -tf.eye(seq_len, dtype=tf_float)
-        #   non_tgt_mask = tf.concat([tf.zeros([seq_len, mlen], dtype=tf_float),
-        #                               non_tgt_mask], axis=-1)
-        #     non_tgt_mask = tf.cast(
-        #         (attn_mask + non_tgt_mask[:, :, None, None]) > 0,
-        #         dtype=tf_float)
-        # else:
-        #     non_tgt_mask = None
-        non_tgt_mask = None
+        if attn_mask is not None:
+            non_tgt_mask = -tf.eye(seq_len, dtype=tf_float)
+            non_tgt_mask = tf.concat([tf.zeros([seq_len, mlen], dtype=tf_float),
+                                      non_tgt_mask], axis=-1)
+            non_tgt_mask = tf.cast(
+                (attn_mask + non_tgt_mask[:, :, None, None]) > 0,
+                dtype=tf_float)
+        else:
+            non_tgt_mask = None
 
         # #### Word embedding
         word_emb_k, lookup_table = embedding_lookup(
