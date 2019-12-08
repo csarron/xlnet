@@ -268,9 +268,10 @@ def main(_):
             pred_info[int(unique_id)] = pred_item
 
         ckpt = os.path.basename(checkpoint_path) if checkpoint_path else ''
-        prediction_prefix = FLAGS.eval_file + ckpt + '.predictions'
-        with tf.gfile.Open(prediction_prefix + '.pk', 'wb') as fo:
-            pickle.dump(pred_info, fo)
+        dec_suffix = '_s{}'.format(FLAGS.sep_layer) if FLAGS.decompose else ''
+        prediction_prefix = FLAGS.eval_file + ckpt + dec_suffix + '.predictions'
+        # with tf.gfile.Open(prediction_prefix + '.pk', 'wb') as fo:
+        #         pickle.dump(pred_info, fo)
 
         pred_path = prediction_prefix + '.json'
         if FLAGS.task == 'hotpot':

@@ -199,3 +199,24 @@ sleep 60
 echo "sucess run, pause tpu"
 ctpu pause  --tpu-only --name=xlnet-tpu --noconf;
 
+for model in base; do
+  msl=320
+  sep_layer=9
+  for step in 10000 8000 12000 14000 11000 13000; do
+    python run_extractive_qa.py --num_classes=2 --decompose=True --sep_layer=${sep_layer} \
+      --use_tpu=True --tpu=xlnet-sep --num_hosts=1 --num_core_per_host=8 \
+      --model_config_path="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_config.json" \
+      --init_checkpoint="gs://bert-gcs/xlnet/init_cased_${model}/xlnet_model.ckpt" \
+      --model_dir="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}_s${sep_layer}" \
+      --checkpoint_path="gs://bert-gcs/xlnet/ckpt/exlnet_squad_${model}_s${sep_layer}/model.ckpt-${step}" \
+      --eval_file="${dataset_dir}/squad_v1.1-dev.10803.tfrecord" \
+      --eval_example_file="${dataset_dir}/squad_v1.1-dev.10803.jsonl" \
+      --max_seq_length=${msl} --iterations=1000 \
+      --do_predict=True --predict_batch_size=32 \
+      2>&1 | tee data/eval-exlnet-${model}-s${sep_layer}-squad-ckpt-${step}.log
+  done
+done
+
+sleep 60
+ctpu pause  --tpu-only --name=xlnet-sep --noconf;
+
