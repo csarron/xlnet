@@ -125,6 +125,8 @@ flags.DEFINE_integer("num_classes", default=2,
                      help="batch size for prediction")
 flags.DEFINE_string("task", default="squad_v1.1",
                     help="squad_v1.1 or squad_v2.0 or hotpot")
+flags.DEFINE_string("prediction_file", default="",
+                    help="prediction path prefix")
 flags.DEFINE_bool("decompose", default=False, help="whether to use decompose")
 flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
@@ -137,6 +139,7 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
+    FLAGS.use_tpu = True if FLAGS.tpu else False
     # ### Validate flags
     if FLAGS.save_steps is not None:
         FLAGS.iterations = min(FLAGS.iterations, FLAGS.save_steps)
@@ -272,10 +275,11 @@ def main(_):
         ckpt = os.path.basename(checkpoint_path) if checkpoint_path else ''
         dec_suffix = '_s{}'.format(FLAGS.sep_layer) if FLAGS.decompose else ''
         prediction_prefix = FLAGS.eval_file + ckpt + dec_suffix + '.predictions'
-        # with tf.gfile.Open(prediction_prefix + '.pk', 'wb') as fo:
-        #         pickle.dump(pred_info, fo)
-
-        pred_path = prediction_prefix + '.json'
+        prediction_file = prediction_prefix + '.json'
+        pred_path = FLAGS.prediction_file or prediction_file
+        pred_dir = os.path.dirname(pred_path)
+        if not tf.io.gfile.exists(pred_dir):
+            tf.io.gfile.makedirs(pred_dir)
         if FLAGS.task == 'hotpot':
             final_predictions_data = {"answer": final_predictions, "sp": {}}
         else:
