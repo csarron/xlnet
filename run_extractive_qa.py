@@ -130,6 +130,8 @@ flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
 flags.DEFINE_integer("max_first_length", default=25,
                      help="max_first_length")
+# kd_alpha, mse_beta, ce_gamma
+# distill
 
 FLAGS = flags.FLAGS
 
