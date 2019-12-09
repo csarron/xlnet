@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
+import os
 
 from merge_checkpoints import gen_var_from_checkpoint
 from util import tf
@@ -9,6 +10,9 @@ from util import tf
 def main(args):
     checkpoint_file = args.checkpoint_file
     out_file = args.out_file
+    out_dir = os.path.dirname(out_file)
+    if not tf.io.gfile.exists(out_dir):
+        tf.io.gfile.makedirs(out_dir)
     with tf.Session() as sess:
         new_vars = []
         print('loading variables from', checkpoint_file)

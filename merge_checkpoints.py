@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
+import os
 import re
 
 from util import tf
@@ -19,6 +20,9 @@ def main(args):
     checkpoint_init = args.checkpoint_init
     checkpoint_teacher = args.checkpoint_teacher
     out_file = args.out_file
+    out_dir = os.path.dirname(out_file)
+    if not tf.io.gfile.exists(out_dir):
+        tf.io.gfile.makedirs(out_dir)
     with tf.Session() as sess:
         new_vars = []
         print('loading variables from', checkpoint_init)
