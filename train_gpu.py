@@ -139,7 +139,7 @@ def get_model_fn():
 
     #### Check model parameters
     num_params = sum([np.prod(v.shape) for v in tf.trainable_variables()])
-    tf.logging.info('#params: {}'.format(num_params))
+    logger.info('#params: {}'.format(num_params))
 
     # GPU
     assert is_training
@@ -201,7 +201,7 @@ def train(ps_device):
       num_predict=FLAGS.num_predict)
 
   # for key, info in record_info_dict.items():
-  tf.logging.info("num of batches {}".format(record_info_dict["num_batch"]))
+  logger.info("num of batches {}".format(record_info_dict["num_batch"]))
 
   ##### Create input tensors / placeholders
   bsz_per_core = FLAGS.train_batch_size // FLAGS.num_core_per_host
@@ -294,7 +294,7 @@ def train(ps_device):
 
       if curr_step > 0 and curr_step % FLAGS.iterations == 0:
         curr_loss = total_loss / (curr_step - prev_step)
-        tf.logging.info("[{}] | gnorm {:.2f} lr {:8.6f} "
+        logger.info("[{}] | gnorm {:.2f} lr {:8.6f} "
             "| loss {:.2f} | pplx {:>7.2f}, bpc {:>7.4f}".format(
             curr_step, fetched[-3], fetched[-2],
             curr_loss, math.exp(curr_loss), curr_loss / math.log(2)))
@@ -303,7 +303,7 @@ def train(ps_device):
       if curr_step > 0 and curr_step % FLAGS.save_steps == 0:
         save_path = os.path.join(FLAGS.model_dir, "model.ckpt")
         saver.save(sess, save_path)
-        tf.logging.info("Model saved in path: {}".format(save_path))
+        logger.info("Model saved in path: {}".format(save_path))
 
       if curr_step >= FLAGS.train_steps:
         break
@@ -312,11 +312,11 @@ def train(ps_device):
 def main(unused_argv):
   del unused_argv  # Unused
 
-  tf.logging.set_verbosity(tf.logging.INFO)
+  logger.set_verbosity(logger.INFO)
 
   # Get corpus info
   FLAGS.n_token = data_utils.VOCAB_SIZE
-  tf.logging.info("n_token {}".format(FLAGS.n_token))
+  logger.info("n_token {}".format(FLAGS.n_token))
 
   if not tf.gfile.Exists(FLAGS.model_dir):
     tf.gfile.MakeDirs(FLAGS.model_dir)

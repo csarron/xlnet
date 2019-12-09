@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 
+from util import logger
 from util import tf
 
 
@@ -460,9 +461,9 @@ def transformer_xl(input_ids, n_token, n_layer, d_model, n_head,
       initializer: A tf initializer.
       scope: scope name for the computation graph.
     """
-    # tf.logging.info('memory input {}'.format(mems))
+    # logger.info('memory input {}'.format(mems))
     tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
-    tf.logging.info('Use float type {}'.format(tf_float))
+    logger.info('Use float type {}'.format(tf_float))
 
     new_mems = []
     with tf.variable_scope(scope):

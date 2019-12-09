@@ -3,7 +3,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import tensorflow as tf
+
+from util import tf
+
 
 def assign_to_gpu(gpu=0, ps_dev="/device:CPU:0"):
     def _assign(op):
@@ -12,6 +14,7 @@ def assign_to_gpu(gpu=0, ps_dev="/device:CPU:0"):
             return ps_dev
         else:
             return "/gpu:%d" % gpu
+
     return _assign
 
 
@@ -36,7 +39,8 @@ def average_grads_and_vars(tower_grads_and_vars):
             values += [g.values]
         indices = tf.concat(indices, 0)
         values = tf.concat(values, 0) / len(grad_and_vars)
-        return tf.IndexedSlices(values, indices, grad_and_vars[0][0].dense_shape)
+        return tf.IndexedSlices(values, indices,
+                                grad_and_vars[0][0].dense_shape)
 
     average_grads_and_vars = []
     for grad_and_vars in zip(*tower_grads_and_vars):
@@ -64,6 +68,7 @@ def load_from_checkpoint(saver, logdir):
             saver.restore(sess, ckpt.model_checkpoint_path)
         else:
             # Restores from checkpoint with relative path.
-            saver.restore(sess, os.path.join(logdir, ckpt.model_checkpoint_path))
+            saver.restore(sess,
+                          os.path.join(logdir, ckpt.model_checkpoint_path))
         return True
     return False

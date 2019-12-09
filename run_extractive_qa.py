@@ -282,9 +282,9 @@ def main(_):
         with tf.io.gfile.GFile(pred_path, "w") as f:
             f.write(json.dumps(final_predictions_data, indent=2,
                                ensure_ascii=False) + "\n")
-        tf.logging.info("final predictions written to {}".format(pred_path))
+        logger.info("final predictions written to {}".format(pred_path))
         em_score, f1_score = get_em_f1(final_predictions, all_ground_truths)
-        tf.logging.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
+        logger.info("em={:.4f}, f1={:.4f}".format(em_score, f1_score))
 
 
 if __name__ == "__main__":

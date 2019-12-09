@@ -168,7 +168,7 @@ def get_model_fn():
 
     #### Check model parameters
     num_params = sum([np.prod(v.shape) for v in tf.trainable_variables()])
-    tf.logging.info("#params: {}".format(num_params))
+    logger.info("#params: {}".format(num_params))
 
     #### Configuring the optimizer
     train_op, learning_rate, gnorm = model_utils.get_train_op(
@@ -246,13 +246,13 @@ def get_input_fn(split):
 def main(unused_argv):
   del unused_argv  # Unused
 
-  tf.logging.set_verbosity(tf.logging.INFO)
+  logger.set_verbosity(logger.INFO)
 
   assert FLAGS.seq_len > 0
   assert FLAGS.perm_size > 0
 
   FLAGS.n_token = data_utils.VOCAB_SIZE
-  tf.logging.info("n_token {}".format(FLAGS.n_token))
+  logger.info("n_token {}".format(FLAGS.n_token))
 
   if not tf.gfile.Exists(FLAGS.model_dir):
     tf.gfile.MakeDirs(FLAGS.model_dir)
@@ -260,7 +260,7 @@ def main(unused_argv):
   # Get train input function
   train_input_fn, train_record_info_dict = get_input_fn("train")
 
-  tf.logging.info("num of batches {}".format(
+  logger.info("num of batches {}".format(
       train_record_info_dict["num_batch"]))
 
   # Get train cache function

@@ -7,6 +7,7 @@ from modeling import embedding_lookup
 from modeling import positionwise_ffn
 from modeling import rel_multihead_attn
 from modeling import relative_positional_encoding
+from util import logger
 from util import tf
 
 
@@ -20,7 +21,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                               q_seq_len=None, ctx_seq_len=None,
                               scope='transformer', **kwargs):
     tf_float = tf.bfloat16 if use_bfloat16 else tf.float32
-    tf.logging.info('Use float type {}'.format(tf_float))
+    logger.info('Use float type {}'.format(tf_float))
     # new_mems = []
     with tf.variable_scope(scope):
         if untie_r:
