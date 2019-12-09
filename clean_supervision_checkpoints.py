@@ -22,7 +22,7 @@ def main(args):
             if var_name.startswith('teacher/'):
                 continue
             # new_var = tf.Variable(var, name='teacher/{}'.format(var_name))
-            new_var = tf.Variable(var, var_name)
+            new_var = tf.Variable(var, name=var_name)
             new_vars.append(new_var)
 
         print('saving weights to:', out_file)
