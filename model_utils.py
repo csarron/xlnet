@@ -43,6 +43,7 @@ def configure_tpu(FLAGS):
 
     per_host_input = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
     run_config = tf.contrib.tpu.RunConfig(
+        # https://github.com/zihangdai/xlnet/pull/239/files#diff-0
         cluster=tpu_cluster,
         master=master,
         model_dir=FLAGS.model_dir,
