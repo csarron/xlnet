@@ -472,7 +472,7 @@ def get_qa_model_fn(FLAGS):
         all_trainable_variables = tf.trainable_variables()
         # set fine tune scope
         if FLAGS.tune_scopes:
-            tune_scopes = FLAGS.init_scopes.split(',')
+            tune_scopes = FLAGS.tune_scopes.split(',')
         else:
             tune_scopes = None
         logger.info('tune_scopes: {}'.format(tune_scopes))
@@ -487,7 +487,7 @@ def get_qa_model_fn(FLAGS):
             init_scopes = FLAGS.init_scopes.split(',')
         else:
             init_scopes = None
-        logger.info('init_scopes: {}'.format(tune_scopes))
+        logger.info('init_scopes: {}'.format(init_scopes))
         if isinstance(init_scopes, list):
             to_be_init_variables = []
             for scope in init_scopes:
