@@ -45,8 +45,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c1', '--checkpoint_init', type=str)
-    parser.add_argument('-c2', '--checkpoint_teacher', type=str)
+    parser.add_argument('-ci', '--checkpoint_init', type=str)
+    parser.add_argument('-ct', '--checkpoint_teacher', type=str)
     parser.add_argument('-o', '--out_file', type=str)
     parser.add_argument("-dr", "--dry_run", action='store_true',
                         help="dry run renaming")
