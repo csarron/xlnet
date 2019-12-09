@@ -393,8 +393,8 @@ def get_qa_model_fn(FLAGS):
             teacher_outputs = None
 
         if FLAGS.decompose:
-            logger.info('decompose at layer: {}'.format(FLAGS.sep_layer))
             FLAGS.sep_layer = sep_layer
+            logger.info('decompose at layer: {}'.format(FLAGS.sep_layer))
             outputs = get_decomposed_qa_outputs(FLAGS, features, is_training)
         else:
             logger.info('running in normal mode')
