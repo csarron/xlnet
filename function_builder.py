@@ -520,17 +520,18 @@ def get_qa_model_fn(FLAGS):
         for var in to_be_init_variables:
             init_str = ""
             if var.name in initialized_variable_names:
-                init_str = ", *INIT_FROM_CKPT*"
-            logger.info("  name=%s, shape=%s%s", var.name, var.shape, init_str)
+                init_str = ", *INIT*"
+            logger.info("  name=%s, shape=%s%s",
+                        var.name, var.shape, init_str)
 
         if mode == tf.estimator.ModeKeys.TRAIN:
             logger.info("**** Trainable Variables ****")
             for var in trainable_variables:
                 init_str = ""
                 if var.name in initialized_variable_names:
-                    init_str = ", *INIT_FROM_CKPT*"
-                logger.info("  name=%s, shape=%s%s", var.name, var.shape,
-                            init_str)
+                    init_str = ", *INIT_AND_TRAINABLE*"
+                logger.info("*TRAINABLE*  name=%s, shape=%s%s",
+                            var.name, var.shape, init_str)
         train_op, learning_rate, _ = get_train_op(
             FLAGS, total_loss, trainable_variables=trainable_variables)
 
