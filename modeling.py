@@ -3,7 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+
+from util import tf
 
 
 def gelu(x):
@@ -785,7 +786,6 @@ def classification_loss(hidden, labels, n_class, initializer, scope, reuse=None,
             return loss, logits
 
         return loss
-
 
 # def regression_loss(hidden, labels, initializer, scope, reuse=None,
 #                     return_logits=False):

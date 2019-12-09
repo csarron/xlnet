@@ -1,15 +1,20 @@
 import logging
 
-logger = logging.getLogger('xlnet')
+import tensorflow
+import absl.flags
+
+logger = logging.getLogger('eet')
 
 logger.setLevel(logging.INFO)
-fmt = logging.Formatter("%(levelname)s:%(asctime)s.%(msecs)03d:"
-                        "%(pathname)s:%(lineno)d: %(message)s",
-                        "%Y-%m-%d_%H:%M:%S")
+fmt = logging.Formatter("%(levelname)s:%(asctime)s.%(msecs)03d:%(pathname)s:"
+                        "%(lineno)d: %(message)s", "%Y-%m-%d_%H:%M:%S")
 handler = logging.StreamHandler()
 handler.setFormatter(fmt)
 logger.addHandler(handler)
 logger.propagate = False
+
+tf = tensorflow
+flags = absl.flags
 
 
 def abbreviate(x):

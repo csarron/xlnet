@@ -4,13 +4,13 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
 
 import model_utils
 import modeling
 import xlnet
 from modeling_decomposed import get_decomposed_qa_outputs
 from util import logger
+from util import tf
 
 
 def construct_scalar_host_call(

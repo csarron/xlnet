@@ -93,7 +93,7 @@ def get_example_and_dev_ids(feature_id):
 
 
 def load_examples(input_file):
-    import tensorflow as tf
+    from util import tf
 
     all_examples = dict()  # id to example map
     if not tf.io.gfile.exists(input_file):

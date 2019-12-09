@@ -8,14 +8,14 @@ import json
 import os
 
 import numpy as np
-import tensorflow as tf
-from absl import flags
 
 import function_builder
 import model_utils
 from eval import get_em_f1
 from eval import load_examples
+from util import flags
 from util import logger
+from util import tf
 
 # Model
 flags.DEFINE_string("model_config_path", default=None,
@@ -124,8 +124,11 @@ flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
 flags.DEFINE_integer("max_first_length", default=25,
                      help="max_first_length")
-# kd_alpha, mse_beta, ce_gamma
-# distill
+flags.DEFINE_bool("supervise", default=False,
+                  help="whether to use distill")
+flags.DEFINE_float("dl_alpha", default=0.5, help="distill loss hyper param")
+flags.DEFINE_float("ul_beta", default=0.5, help="upper layer loss hyper param")
+flags.DEFINE_float("ll_gamma", default=1.0, help="label loss hyper param")
 
 FLAGS = flags.FLAGS
 

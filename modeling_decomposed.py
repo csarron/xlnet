@@ -2,13 +2,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 import xlnet
 from modeling import embedding_lookup
 from modeling import positionwise_ffn
 from modeling import rel_multihead_attn
 from modeling import relative_positional_encoding
+from util import tf
 
 
 def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
