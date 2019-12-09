@@ -8,7 +8,6 @@ import json
 import os
 
 import numpy as np
-import six
 import tensorflow as tf
 from absl import flags
 
@@ -17,11 +16,6 @@ import model_utils
 from eval import get_em_f1
 from eval import load_examples
 from util import logger
-
-if six.PY2:
-    import cPickle as pickle
-else:
-    import pickle
 
 # Model
 flags.DEFINE_string("model_config_path", default=None,
@@ -67,8 +61,6 @@ flags.DEFINE_string("eval_example_file", default="",
 # Data preprocessing config
 flags.DEFINE_integer("max_seq_length",
                      default=512, help="Max sequence length")
-flags.DEFINE_integer("max_query_length",
-                     default=64, help="Max query length")
 flags.DEFINE_integer("doc_stride",
                      default=128, help="Doc stride")
 flags.DEFINE_integer("max_answer_length",
@@ -223,7 +215,7 @@ def main(_):
             x_s = np.exp(start_logits[context_start:context_end])
             y_s = np.exp(end_logits[context_start:context_end])
             z = np.outer(x_s, y_s)
-            zn = np.tril(np.triu(z), 30)
+            zn = np.tril(np.triu(z), FLAGS.max_answer_length)
             pred_start, pred_end = np.unravel_index(np.argmax(zn), zn.shape)
             pred_score = zn[pred_start, pred_end]
             pred_item['pred_score'] = pred_score
