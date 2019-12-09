@@ -31,7 +31,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-ci', '--checkpoint_file', type=str)
+    parser.add_argument('-c', '--checkpoint_file', type=str)
     parser.add_argument('-o', '--out_file', type=str)
     parser.add_argument("-dr", "--dry_run", action='store_true',
                         help="dry run renaming")
