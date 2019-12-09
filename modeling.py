@@ -42,6 +42,56 @@ def embedding_lookup(x, n_token, d_embed, initializer, use_tpu=True,
             return tf.nn.embedding_lookup(lookup_table, x), lookup_table
 
 
+def relative_positional_encoding(qlen, klen, d_model, clamp_len, attn_type,
+                                 bi_data=None, bsz=None, dtype=None):
+    """create relative positional encoding."""
+    freq_seq = tf.range(0, d_model, 2.0)
+    if dtype is not None and dtype != tf.float32:
+        freq_seq = tf.cast(freq_seq, dtype=dtype)
+    inv_freq = 1 / (10000 ** (freq_seq / d_model))
+
+    if attn_type == 'bi':
+        # beg, end = klen - 1, -qlen
+        beg, end = klen, -qlen
+    elif attn_type == 'uni':
+        # beg, end = klen - 1, -1
+        beg, end = klen, -1
+    else:
+        raise ValueError('Unknown `attn_type` {}.'.format(attn_type))
+
+    # if bi_data:
+    #     fwd_pos_seq = tf.range(beg, end, -1.0)
+    #     bwd_pos_seq = tf.range(-beg, -end, 1.0)
+    #
+    #     if dtype is not None and dtype != tf.float32:
+    #         fwd_pos_seq = tf.cast(fwd_pos_seq, dtype=dtype)
+    #         bwd_pos_seq = tf.cast(bwd_pos_seq, dtype=dtype)
+    #
+    #     if clamp_len > 0:
+    #         fwd_pos_seq = tf.clip_by_value(fwd_pos_seq, -clamp_len, clamp_len)
+    #         bwd_pos_seq = tf.clip_by_value(bwd_pos_seq, -clamp_len, clamp_len)
+    #
+    #     if bsz is not None:
+    #         # With bi_data, the batch size should be divisible by 2.
+    #         assert bsz % 2 == 0
+    #         fwd_pos_emb = positional_embedding(fwd_pos_seq, inv_freq, bsz // 2)
+    #         bwd_pos_emb = positional_embedding(bwd_pos_seq, inv_freq, bsz // 2)
+    #     else:
+    #         fwd_pos_emb = positional_embedding(fwd_pos_seq, inv_freq)
+    #         bwd_pos_emb = positional_embedding(bwd_pos_seq, inv_freq)
+    #
+    #     pos_emb = tf.concat([fwd_pos_emb, bwd_pos_emb], axis=1)
+    # else:
+    fwd_pos_seq = tf.range(beg, end, -1.0)
+    if dtype is not None and dtype != tf.float32:
+        fwd_pos_seq = tf.cast(fwd_pos_seq, dtype=dtype)
+    if clamp_len > 0:
+        fwd_pos_seq = tf.clip_by_value(fwd_pos_seq, -clamp_len, clamp_len)
+    pos_emb = positional_embedding(fwd_pos_seq, inv_freq, bsz)
+
+    return pos_emb
+
+
 def positional_embedding(pos_seq, inv_freq, bsz=None):
     sinusoid_inp = tf.einsum('i,d->id', pos_seq, inv_freq)  # outer product
     pos_emb = tf.concat([tf.sin(sinusoid_inp), tf.cos(sinusoid_inp)], -1)
@@ -205,57 +255,6 @@ def rel_shift(x, klen=-1):
 #             new_mem = tf.concat([prev_mem, curr_out], 0)[-mem_len:]
 #
 #     return tf.stop_gradient(new_mem)
-
-
-def relative_positional_encoding(qlen, klen, d_model, clamp_len, attn_type,
-                                 bi_data=None, bsz=None, dtype=None):
-    """create relative positional encoding."""
-    freq_seq = tf.range(0, d_model, 2.0)
-    if dtype is not None and dtype != tf.float32:
-        freq_seq = tf.cast(freq_seq, dtype=dtype)
-    inv_freq = 1 / (10000 ** (freq_seq / d_model))
-
-    if attn_type == 'bi':
-        # beg, end = klen - 1, -qlen
-        beg, end = klen, -qlen
-    elif attn_type == 'uni':
-        # beg, end = klen - 1, -1
-        beg, end = klen, -1
-    else:
-        raise ValueError('Unknown `attn_type` {}.'.format(attn_type))
-
-    if bi_data:
-        fwd_pos_seq = tf.range(beg, end, -1.0)
-        bwd_pos_seq = tf.range(-beg, -end, 1.0)
-
-        if dtype is not None and dtype != tf.float32:
-            fwd_pos_seq = tf.cast(fwd_pos_seq, dtype=dtype)
-            bwd_pos_seq = tf.cast(bwd_pos_seq, dtype=dtype)
-
-        if clamp_len > 0:
-            fwd_pos_seq = tf.clip_by_value(fwd_pos_seq, -clamp_len, clamp_len)
-            bwd_pos_seq = tf.clip_by_value(bwd_pos_seq, -clamp_len, clamp_len)
-
-        if bsz is not None:
-            # With bi_data, the batch size should be divisible by 2.
-            assert bsz % 2 == 0
-            fwd_pos_emb = positional_embedding(fwd_pos_seq, inv_freq, bsz // 2)
-            bwd_pos_emb = positional_embedding(bwd_pos_seq, inv_freq, bsz // 2)
-        else:
-            fwd_pos_emb = positional_embedding(fwd_pos_seq, inv_freq)
-            bwd_pos_emb = positional_embedding(bwd_pos_seq, inv_freq)
-
-        pos_emb = tf.concat([fwd_pos_emb, bwd_pos_emb], axis=1)
-    else:
-        fwd_pos_seq = tf.range(beg, end, -1.0)
-        if dtype is not None and dtype != tf.float32:
-            fwd_pos_seq = tf.cast(fwd_pos_seq, dtype=dtype)
-        if clamp_len > 0:
-            fwd_pos_seq = tf.clip_by_value(fwd_pos_seq, -clamp_len, clamp_len)
-        pos_emb = positional_embedding(fwd_pos_seq, inv_freq, bsz)
-
-    return pos_emb
-
 
 def multihead_attn(q, k, v, attn_mask, d_model, n_head, d_head, dropout,
                    dropatt, is_training, kernel_initializer, residual=True,

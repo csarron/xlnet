@@ -112,22 +112,27 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
         seg_mat = tf.one_hot(seg_mat, 2, dtype=tf_float)
 
         # #### Positional encoding
-        q_pos_emb = relative_positional_encoding(
-            q_seq_len, q_seq_len, d_model, clamp_len, attn_type,
-            bsz=batch_size, dtype=tf_float)
-        q_pos_emb = tf.layers.dropout(q_pos_emb, dropout, training=is_training)
-
-        ctx_pos_emb = relative_positional_encoding(
-            ctx_seq_len, ctx_seq_len, d_model, clamp_len, attn_type,
-            bsz=batch_size, dtype=tf_float)
-        ctx_pos_emb = tf.layers.dropout(ctx_pos_emb, dropout,
-                                        training=is_training)
+        # q_pos_emb = relative_positional_encoding(
+        #     q_seq_len, q_seq_len, d_model, clamp_len, attn_type,
+        #     bsz=batch_size, dtype=tf_float)
+        # q_pos_emb = tf.layers.dropout(q_pos_emb, dropout,
+        # training=is_training)
+        #
+        # ctx_pos_emb = relative_positional_encoding(
+        #     ctx_seq_len, ctx_seq_len, d_model, clamp_len, attn_type,
+        #     bsz=batch_size, dtype=tf_float)
+        # ctx_pos_emb = tf.layers.dropout(ctx_pos_emb, dropout,
+        #                                 training=is_training)
         # pos_emb = tf.concat([ctx_pos_emb, q_pos_emb], axis=0)
         seq_len = ctx_seq_len + q_seq_len
         pos_emb = relative_positional_encoding(
             seq_len, seq_len, d_model, clamp_len, attn_type,
             bsz=batch_size, dtype=tf_float)
         pos_emb = tf.layers.dropout(pos_emb, dropout, training=is_training)
+        ctx_pos_emb = pos_emb[q_seq_len:q_seq_len + 2 * ctx_seq_len, :, :]
+        q_pos_emb1 = pos_emb[:q_seq_len, :, :]
+        q_pos_emb2 = pos_emb[q_seq_len + 2 * ctx_seq_len:, :, :]
+        q_pos_emb = tf.concat([q_pos_emb1, q_pos_emb2], axis=0)
         # #### Attention layers
         # mems = [None] * n_layer
         for i in range(sep_layer):
