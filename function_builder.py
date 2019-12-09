@@ -468,7 +468,20 @@ def get_qa_model_fn(FLAGS):
             monitor_dict["loss/mse"] = mse_loss
             total_loss = gamma * ce_loss + alpha * kd_loss + beta * mse_loss
         # ### Configuring the optimizer
-        train_op, learning_rate, _ = model_utils.get_train_op(FLAGS, total_loss)
+        all_trainable_variables = tf.trainable_variables()
+        # set fine tune scope
+        tune_scopes = FLAGS.tune_scopes.split(',')
+        if isinstance(tune_scopes, list):
+            scoped_variables = []
+            for scope in tune_scopes:
+                scoped_variables.extend(tf.trainable_variables(scope))
+            trainable_variables = scoped_variables
+        else:
+            trainable_variables = all_trainable_variables
+        logger.info('tune_scopes: {}'.format(tune_scopes))
+
+        train_op, learning_rate, _ = model_utils.get_train_op(
+            FLAGS, total_loss, trainable_variables=trainable_variables)
 
         monitor_dict["lr"] = learning_rate
 

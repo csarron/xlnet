@@ -93,7 +93,8 @@ def init_from_checkpoint(FLAGS, global_vars=False):
     return scaffold_fn
 
 
-def get_train_op(FLAGS, total_loss, grads_and_vars=None):
+def get_train_op(FLAGS, total_loss, grads_and_vars=None,
+                 trainable_variables=None):
     global_step = tf.train.get_or_create_global_step()
 
     # increase the learning rate linearly
@@ -143,7 +144,8 @@ def get_train_op(FLAGS, total_loss, grads_and_vars=None):
         optimizer = tf.contrib.tpu.CrossShardOptimizer(optimizer)
 
     if grads_and_vars is None:
-        grads_and_vars = optimizer.compute_gradients(total_loss)
+        grads_and_vars = optimizer.compute_gradients(
+            total_loss, var_list=trainable_variables)
     gradients, variables = zip(*grads_and_vars)
     clipped, gnorm = tf.clip_by_global_norm(gradients, FLAGS.clip)
 

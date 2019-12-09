@@ -119,6 +119,8 @@ flags.DEFINE_string("task", default="squad_v1.1",
                     help="squad_v1.1 or squad_v2.0 or hotpot")
 flags.DEFINE_string("prediction_file", default="",
                     help="prediction path prefix")
+flags.DEFINE_string("tune_scopes", default="",
+                    help="fine tune scopes")
 flags.DEFINE_bool("decompose", default=False, help="whether to use decompose")
 flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
