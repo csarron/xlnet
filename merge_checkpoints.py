@@ -3,7 +3,7 @@
 import argparse
 import re
 
-import tensorflow as tf
+from util import tf
 
 
 def gen_var_from_checkpoint(checkpoint):
