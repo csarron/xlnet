@@ -333,14 +333,67 @@ def get_race_loss(FLAGS, features, is_training):
     return total_loss, per_example_loss, logits
 
 
+def kl_div_loss(student_logits, teacher_logits, temperature=1):
+    """The Kullback–Leibler divergence from Q to P:
+     D_kl (P||Q) = sum(P * log(P / Q))
+    from student to teacher: sum(teacher * log(teacher / student))
+    """
+    teacher_softmax = tf.nn.softmax(teacher_logits / temperature)
+    teacher_log_softmax = tf.nn.log_softmax(teacher_logits / temperature)
+    student_log_softmax = tf.nn.log_softmax(student_logits / temperature)
+    kl_dist = teacher_softmax * (teacher_log_softmax - student_log_softmax)
+    kl_loss = tf.reduce_mean(tf.reduce_sum(kl_dist, -1))
+    return kl_loss
+
+
+def get_distill_loss(teacher_outputs, outputs, temp):
+    t_start = teacher_outputs['start_logits']
+    t_end = teacher_outputs['end_logits']
+    t_cls = teacher_outputs['cls_logits']
+
+    s_start = outputs['start_logits']
+    s_end = outputs['end_logits']
+    s_cls = outputs['cls_logits']
+    kd_start_kl_loss = kl_div_loss(s_start, t_start, temp) * (temp ** 2)
+    kd_end_kl_loss = kl_div_loss(s_end, t_end, temp) * (temp ** 2)
+    kd_cls_kl_loss = kl_div_loss(s_cls, t_cls, temp) * (temp ** 2)
+    kd_kl_loss = (kd_start_kl_loss + kd_end_kl_loss + kd_cls_kl_loss) / 3
+    return kd_kl_loss
+
+
+def get_upper_loss(teacher_outputs, outputs):
+    t_upper = teacher_outputs['upper_outputs']
+    s_upper = outputs['upper_outputs']
+    num_upper_layers = len(s_upper)
+    t_upper_outputs = t_upper[-num_upper_layers:]
+
+    mse_loss = 0
+    for u_output, t_upper_output in zip(s_upper, t_upper_outputs):
+        mse_loss += tf.losses.mean_squared_error(u_output,
+                                                 t_upper_output)
+    mse_loss /= num_upper_layers
+    return mse_loss
+
+
 def get_qa_model_fn(FLAGS):
     def model_fn(features, labels, mode, params):
         # ### Training or Evaluation
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
         # ### Get loss from inputs
+        sep_layer = FLAGS.sep_layer
+        if FLAGS.supervise:
+            FLAGS.sep_layer = 0  # teacher sep at 0
+            logger.info('supervise decompose layer: {}'.format(FLAGS.sep_layer))
+            with tf.variable_scope("teacher", reuse=tf.AUTO_REUSE):
+                teacher_outputs = get_decomposed_qa_outputs(
+                    FLAGS, features, is_training)
+        else:
+            teacher_outputs = None
+
         if FLAGS.decompose:
-            logger.info('running in decompose mode')
+            logger.info('decompose at layer: {}'.format(FLAGS.sep_layer))
+            FLAGS.sep_layer = sep_layer
             outputs = get_decomposed_qa_outputs(FLAGS, features, is_training)
         else:
             logger.info('running in normal mode')
@@ -394,18 +447,30 @@ def get_qa_model_fn(FLAGS):
         cls_loss = compute_loss(
             outputs["cls_log_probs"], features["cls"], depth=FLAGS.num_classes)
 
-        # note(zhiliny): by default multiply the loss by 0.5 so that the scale is
-        # comparable to start_loss and end_loss
+        # note(zhiliny): by default multiply the loss by 0.5 so that
+        # the scale is comparable to start_loss and end_loss
         total_loss += cls_loss * 0.5
+        monitor_dict = {"loss/start": start_loss,
+                        "loss/end": end_loss,
+                        "loss/cls": cls_loss,
+                        'loss/ce': total_loss}
 
+        if teacher_outputs is not None:
+            ce_loss = total_loss
+            gamma = FLAGS.ll_gamma
+            alpha = FLAGS.dl_alpha
+            beta = FLAGS.ul_beta
+            # supervise upper and logits
+            temp = FLAGS.temperature
+            kd_loss = get_distill_loss(teacher_outputs, outputs, temp)
+            mse_loss = get_upper_loss(teacher_outputs, outputs)
+            monitor_dict["loss/kd"] = kd_loss
+            monitor_dict["loss/mse"] = mse_loss
+            total_loss = gamma * ce_loss + alpha * kd_loss + beta * mse_loss
         # ### Configuring the optimizer
         train_op, learning_rate, _ = model_utils.get_train_op(FLAGS, total_loss)
 
-        monitor_dict = {}
         monitor_dict["lr"] = learning_rate
-        monitor_dict["loss/start"] = start_loss
-        monitor_dict["loss/end"] = end_loss
-        monitor_dict["loss/cls"] = cls_loss
 
         # ### load pretrained models
         scaffold_fn = model_utils.init_from_checkpoint(FLAGS)

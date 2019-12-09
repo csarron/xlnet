@@ -196,6 +196,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
 
         # concat all q, ctx related variables
         output_h = tf.concat([ctx_output_h, q_output_h], axis=0)
+        upper_outputs = []
         for i in range(sep_layer, n_layer):
             r_s_bias_i = r_s_bias if not untie_r else r_s_bias[i]
             r_w_bias_i = r_w_bias if not untie_r else r_w_bias[i]
@@ -230,8 +231,10 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     activation_type=ff_activation,
                     is_training=is_training,
                     reuse=False)
+                upper_outputs.append(output_h)
         output = tf.layers.dropout(output_h, dropout, training=is_training)
-        return output
+        upper_outputs[-1] = output
+        return upper_outputs
 
 
 def get_attention_mask(input_ids, seq_len):
@@ -307,9 +310,10 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
     )
 
     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
-        output = transformer_xl_decomposed(**tfm_args)
+        upper_outputs = transformer_xl_decomposed(**tfm_args)
 
-    return_dict = {}
+    output = upper_outputs[-1]
+    return_dict = {'upper_outputs': upper_outputs}
     with tf.variable_scope("logits"):
         # logits: seq, batch_size, 2
         logits = tf.layers.dense(output, 2, kernel_initializer=initializer)
@@ -329,12 +333,11 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         # end_log_probs = tf.nn.log_softmax(end_logits_masked, -1)
         end_log_probs = tf.nn.log_softmax(end_logits, -1)
 
+    return_dict["start_logits"] = start_logits
+    return_dict["end_logits"] = end_logits
     if is_training:
         return_dict["start_log_probs"] = start_log_probs
         return_dict["end_log_probs"] = end_log_probs
-    else:
-        return_dict["start_logits"] = start_logits
-        return_dict["end_logits"] = end_logits
 
     # an additional layer to predict answer class, 0: span, 1:yes, 2:no
     with tf.variable_scope("answer_class"):
@@ -354,9 +357,9 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
                                      kernel_initializer=initializer,
                                      name="cls")
         cls_log_probs = tf.nn.log_softmax(cls_logits, -1)
+
+    return_dict["cls_logits"] = cls_logits
     if is_training:
         return_dict["cls_log_probs"] = cls_log_probs
-    else:
-        return_dict["cls_logits"] = cls_logits
 
     return return_dict

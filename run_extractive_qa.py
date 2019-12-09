@@ -129,6 +129,7 @@ flags.DEFINE_bool("supervise", default=False,
 flags.DEFINE_float("dl_alpha", default=0.5, help="distill loss hyper param")
 flags.DEFINE_float("ul_beta", default=0.5, help="upper layer loss hyper param")
 flags.DEFINE_float("ll_gamma", default=1.0, help="label loss hyper param")
+flags.DEFINE_float("temperature", default=2.0, help="distill temperature")
 
 FLAGS = flags.FLAGS
 
