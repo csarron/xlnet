@@ -5,9 +5,10 @@ from __future__ import print_function
 
 import numpy as np
 
-import model_utils
 import modeling
 import xlnet
+from model_utils import get_train_op
+from model_utils import my_init_from_checkpoint
 from modeling_decomposed import get_decomposed_qa_outputs
 from util import logger
 from util import tf
@@ -470,7 +471,11 @@ def get_qa_model_fn(FLAGS):
         # ### Configuring the optimizer
         all_trainable_variables = tf.trainable_variables()
         # set fine tune scope
-        tune_scopes = FLAGS.tune_scopes.split(',')
+        if FLAGS.tune_scopes:
+            tune_scopes = FLAGS.init_scopes.split(',')
+        else:
+            tune_scopes = None
+        logger.info('tune_scopes: {}'.format(tune_scopes))
         if isinstance(tune_scopes, list):
             scoped_variables = []
             for scope in tune_scopes:
@@ -478,15 +483,58 @@ def get_qa_model_fn(FLAGS):
             trainable_variables = scoped_variables
         else:
             trainable_variables = all_trainable_variables
-        logger.info('tune_scopes: {}'.format(tune_scopes))
+        if FLAGS.init_scopes:
+            init_scopes = FLAGS.init_scopes.split(',')
+        else:
+            init_scopes = None
+        logger.info('init_scopes: {}'.format(tune_scopes))
+        if isinstance(init_scopes, list):
+            to_be_init_variables = []
+            for scope in init_scopes:
+                to_be_init_variables.extend(tf.trainable_variables(scope))
+        else:
+            to_be_init_variables = all_trainable_variables
 
-        train_op, learning_rate, _ = model_utils.get_train_op(
+        initialized_variable_names = {}
+        scaffold_fn = None
+        # ### load pretrained models
+        init_checkpoint = FLAGS.init_checkpoint
+        if init_checkpoint:
+            logger.info("Initialize from the ckpt {}".format(init_checkpoint))
+            assign_map, initialized_variable_names = my_init_from_checkpoint(
+                init_checkpoint, to_be_init_variables)
+            # logger.info('assign_map: \n{}'.format(assign_map))
+            # logger.info('initialized_variable_names: \n{}'.format(
+            # initialized_variable_names))
+
+            if FLAGS.use_tpu:
+                def tpu_scaffold():
+                    tf.train.init_from_checkpoint(init_checkpoint, assign_map)
+                    return tf.train.Scaffold()
+
+                scaffold_fn = tpu_scaffold
+            else:
+                tf.train.init_from_checkpoint(init_checkpoint, assign_map)
+
+        logger.info("**** Initialized Variables ****")
+        for var in to_be_init_variables:
+            init_str = ""
+            if var.name in initialized_variable_names:
+                init_str = ", *INIT_FROM_CKPT*"
+            logger.info("  name=%s, shape=%s%s", var.name, var.shape, init_str)
+
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            logger.info("**** Trainable Variables ****")
+            for var in trainable_variables:
+                init_str = ""
+                if var.name in initialized_variable_names:
+                    init_str = ", *INIT_FROM_CKPT*"
+                logger.info("  name=%s, shape=%s%s", var.name, var.shape,
+                            init_str)
+        train_op, learning_rate, _ = get_train_op(
             FLAGS, total_loss, trainable_variables=trainable_variables)
 
         monitor_dict["lr"] = learning_rate
-
-        # ### load pretrained models
-        scaffold_fn = model_utils.init_from_checkpoint(FLAGS)
 
         # ### Constucting training TPUEstimatorSpec with new cache.
         if FLAGS.use_tpu:

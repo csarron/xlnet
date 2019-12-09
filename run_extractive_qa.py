@@ -121,6 +121,8 @@ flags.DEFINE_string("prediction_file", default="",
                     help="prediction path prefix")
 flags.DEFINE_string("tune_scopes", default="",
                     help="fine tune scopes")
+flags.DEFINE_string("init_scopes", default="",
+                    help="fine initialize variable scopes")
 flags.DEFINE_bool("decompose", default=False, help="whether to use decompose")
 flags.DEFINE_integer("sep_layer", default=9,
                      help="which layer to start decompose")
