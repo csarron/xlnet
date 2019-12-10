@@ -308,7 +308,7 @@ def main(_):
             config=run_config,
             train_batch_size=FLAGS.train_batch_size,
             predict_batch_size=FLAGS.predict_batch_size,
-            eval_batch_size=FLAGS.eval_batch_size)
+            eval_batch_size=FLAGS.predict_batch_size)
     else:
         estimator = tf.estimator.Estimator(
             model_fn=model_fn,
