@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import collections
-from scipy.special import softmax
 import json
 import os
-from os.path import join
 
 import numpy as np
+from scipy.special import softmax
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score
 
@@ -286,7 +285,7 @@ def get_model_fn(FLAGS):
 
 
 def main(_):
-
+    FLAGS.use_tpu = True if FLAGS.tpu else False
     # ### Validate flags
     if FLAGS.save_steps is not None:
         FLAGS.iterations = min(FLAGS.iterations, FLAGS.save_steps)
