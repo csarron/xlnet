@@ -294,6 +294,7 @@ def main(_):
         raise ValueError(
             "At least one of `do_train`, `do_eval, `do_predict` or "
             "`do_submit` must be True.")
+    logger.info("FLAGS: {}".format(FLAGS.flag_values_dict()))
 
     run_config = model_utils.configure_tpu(FLAGS)
 
