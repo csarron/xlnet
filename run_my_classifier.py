@@ -286,7 +286,6 @@ def get_model_fn(FLAGS):
 
 
 def main(_):
-    logger.set_verbosity(logger.INFO)
 
     # ### Validate flags
     if FLAGS.save_steps is not None:
