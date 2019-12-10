@@ -144,6 +144,9 @@ def file_based_input_fn_builder(FLAGS, is_training):
         }
     else:
         seq_length = FLAGS.max_seq_length
+        num_choices = FLAGS.get('num_choices', 0)
+        if num_choices:
+            seq_length *= num_choices
         name_to_features = {
             "feature_id": tf.FixedLenFeature([], tf.int64),
             "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
