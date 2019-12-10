@@ -95,22 +95,13 @@ flags.DEFINE_float("adam_epsilon", default=1e-8, help="Adam epsilon")
 flags.DEFINE_string("decay_method", default="poly", help="poly or cos")
 
 # evaluation
-flags.DEFINE_bool("do_eval", default=False, help="whether to do eval")
 flags.DEFINE_bool("do_predict", default=False, help="whether to do prediction")
-flags.DEFINE_float("predict_threshold", default=0,
-                   help="Threshold for binary prediction.")
 flags.DEFINE_string("eval_split", default="dev", help="could be dev or test")
 flags.DEFINE_integer("eval_batch_size", default=128,
                      help="batch size for evaluation")
 flags.DEFINE_integer("predict_batch_size", default=128,
                      help="batch size for prediction.")
-flags.DEFINE_bool("eval_all_ckpt", default=False,
-                  help="Eval all ckpts. If False, only evaluate the last one.")
-flags.DEFINE_string("predict_ckpt", default=None,
-                    help="Ckpt path for do_predict. If None, use the last one.")
-
 # task specific
-flags.DEFINE_string("task_name", default=None, help="Task name")
 flags.DEFINE_integer("max_seq_length", default=128, help="Max sequence length")
 flags.DEFINE_integer("shuffle_buffer", default=2048,
                      help="Buffer size used for shuffle.")
