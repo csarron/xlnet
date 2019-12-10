@@ -135,16 +135,17 @@ def construct_scalar_host_call(
 #         return two_stream_loss(FLAGS, features, labels, mems, is_training)
 
 
-def get_classification_loss(
-    FLAGS, features, n_class, is_training):
+def get_classification_loss(FLAGS, features, is_training):
     """Loss for downstream classification tasks."""
-
-    bsz_per_core = tf.shape(features["input_ids"])[0]
-
-    inp = tf.transpose(features["input_ids"], [1, 0])
-    seg_id = tf.transpose(features["segment_ids"], [1, 0])
-    inp_mask = tf.transpose(features["input_mask"], [1, 0])
-    label = tf.reshape(features["label_ids"], [bsz_per_core])
+    input_ids = features["input_ids"]
+    seg_id = features["segment_ids"]
+    input_mask_int = tf.cast(tf.cast(input_ids, tf.bool), tf.int32)
+    cls_index = tf.reshape(tf.reduce_sum(input_mask_int, axis=1), [-1])
+    input_ids = tf.transpose(input_ids, [1, 0])
+    input_mask = 1 - tf.cast(input_mask_int, tf.float32)
+    input_mask = tf.transpose(input_mask, [1, 0])
+    seg_id = tf.transpose(seg_id, [1, 0])
+    seq_len = tf.shape(input_ids)[0]
 
     xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
     run_config = xlnet.create_run_config(is_training, True, FLAGS)
@@ -152,31 +153,37 @@ def get_classification_loss(
     xlnet_model = xlnet.XLNetModel(
         xlnet_config=xlnet_config,
         run_config=run_config,
-        input_ids=inp,
+        input_ids=input_ids,
         seg_ids=seg_id,
-        input_mask=inp_mask)
+        input_mask=input_mask)
+    output = xlnet_model.get_sequence_output()
 
-    summary = xlnet_model.get_pooled_out(FLAGS.summary_type,
-                                         FLAGS.use_summ_proj)
-
+    initializer = xlnet_model.get_initializer()
+    return_dict = {}
     with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("answer_class"):
+            # get the representation of CLS
+            cls_index = tf.one_hot(cls_index, seq_len, axis=-1,
+                                   dtype=tf.float32)
+            cls_feature = tf.einsum("lbh,bl->bh", output, cls_index)
+            ans_feature = tf.layers.dense(cls_feature, xlnet_config.d_model,
+                                          activation=tf.tanh,
+                                          kernel_initializer=initializer,
+                                          name='pooler')
 
-        if FLAGS.cls_scope is not None and FLAGS.cls_scope:
-            cls_scope = "classification_{}".format(FLAGS.cls_scope)
-        else:
-            cls_scope = "classification_{}".format(FLAGS.task_name.lower())
+            ans_feature = tf.layers.dropout(ans_feature, FLAGS.dropout,
+                                            training=is_training)
+            # race has 4 classes,
+            # boolq has 2 classes
+            cls_logits = tf.layers.dense(ans_feature, FLAGS.num_classes,
+                                         kernel_initializer=initializer,
+                                         name="cls")
+            cls_log_probs = tf.nn.log_softmax(cls_logits, -1)
+    if is_training:
+        return_dict["cls_log_probs"] = cls_log_probs
+    return_dict["cls_logits"] = cls_logits
 
-        per_example_loss, logits = modeling.classification_loss(
-            hidden=summary,
-            labels=label,
-            n_class=n_class,
-            initializer=xlnet_model.get_initializer(),
-            scope=cls_scope,
-            return_logits=True)
-
-        total_loss = tf.reduce_mean(per_example_loss)
-
-        return total_loss, per_example_loss, logits
+    return return_dict
 
 
 # def get_regression_loss(
@@ -287,8 +294,7 @@ def get_qa_outputs(FLAGS, features, is_training):
         cls_log_probs = tf.nn.log_softmax(cls_logits, -1)
     if is_training:
         return_dict["cls_log_probs"] = cls_log_probs
-    else:
-        return_dict["cls_logits"] = cls_logits
+    return_dict["cls_logits"] = cls_logits
 
     return return_dict
 
