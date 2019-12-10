@@ -174,8 +174,6 @@ def file_based_input_fn_builder(FLAGS, is_training):
             batch_size = params["batch_size"]
         elif is_training:
             batch_size = FLAGS.train_batch_size
-        elif FLAGS.do_eval:
-            batch_size = FLAGS.eval_batch_size
         else:
             batch_size = FLAGS.predict_batch_size
 
@@ -293,9 +291,9 @@ def main(_):
     if FLAGS.save_steps is not None:
         FLAGS.iterations = min(FLAGS.iterations, FLAGS.save_steps)
 
-    if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
+    if not FLAGS.do_train and not FLAGS.do_predict:
         raise ValueError(
-            "At least one of `do_train`, `do_eval, `do_predict` or "
+            "At least one of `do_train`, `do_predict` or "
             "`do_submit` must be True.")
     logger.info("FLAGS: {}".format(FLAGS.flag_values_dict()))
 
