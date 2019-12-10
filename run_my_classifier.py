@@ -26,7 +26,7 @@ flags.DEFINE_float("dropatt", default=0.1,
                    help="Attention dropout rate.")
 flags.DEFINE_integer("clamp_len", default=-1,
                      help="Clamp length")
-flags.DEFINE_string("summary_type", default="first",
+flags.DEFINE_string("summary_type", default="last",
                     help="Method used to summarize a sequence "
                          "into a compact vector.")
 flags.DEFINE_bool("use_summ_proj", default=True,
@@ -144,7 +144,7 @@ def file_based_input_fn_builder(FLAGS, is_training):
         }
     else:
         seq_length = FLAGS.max_seq_length
-        num_choices = FLAGS.get('num_choices', 0)
+        num_choices = FLAGS.num_choices
         if num_choices:
             seq_length *= num_choices
         name_to_features = {
@@ -245,8 +245,13 @@ def get_model_fn(FLAGS):
             return loss
 
         cls_log_probs = return_dict["cls_log_probs"]
+        num_choices = FLAGS.num_choices
+        if num_choices:
+            num_classes = num_choices
+        else:
+            num_classes = FLAGS.num_classes
         total_loss = compute_loss(cls_log_probs, features["cls"],
-                                  depth=FLAGS.num_classes)
+                                  depth=num_classes)
 
         # ### Configuring the optimizer
         train_op, learning_rate, _ = model_utils.get_train_op(FLAGS, total_loss)
