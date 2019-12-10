@@ -109,7 +109,9 @@ flags.DEFINE_bool("uncased", default=False,
 flags.DEFINE_bool("is_regression", default=False,
                   help="Whether it's a regression task.")
 flags.DEFINE_integer("num_classes", default=2,
-                     help="batch size for prediction")
+                     help="num_classes")
+flags.DEFINE_integer("num_choices", default=0,
+                     help="num_choices")
 flags.DEFINE_string("task", default="boolq",
                     help="boolq or race or qqp or mnli")
 flags.DEFINE_string("tune_scopes", default="",
@@ -221,6 +223,7 @@ def get_model_fn(FLAGS):
         if mode == tf.estimator.ModeKeys.PREDICT:
             # label_ids = tf.reshape(features["cls"], [-1])
             predictions = {
+                "feature_id": features["feature_id"],
                 "cls_logits": cls_logits,
                 # "cls": label_ids,
             }
