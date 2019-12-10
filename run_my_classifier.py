@@ -364,7 +364,7 @@ def main(_):
         acc = accuracy_score(y_true=labels, y_pred=predicted_labels)
         acc *= 100.0
         f1_str = ''
-        if FLAGS.num_classes == 2:
+        if FLAGS.num_classes == 2 and not FLAGS.num_choices:
             f1 = f1_score(y_true=labels, y_pred=predicted_labels)
             f1 *= 100.0
             f1_str = ", f1={:.4f}".format(f1)

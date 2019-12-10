@@ -187,7 +187,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     dropatt=dropatt,
                     is_training=is_training,
                     kernel_initializer=initializer,
-                    reuse=True)
+                    reuse=tf.AUTO_REUSE)
 
                 q_output_h = positionwise_ffn(
                     inp=q_output_h,
@@ -197,7 +197,7 @@ def transformer_xl_decomposed(n_token, n_layer, d_model, n_head,
                     kernel_initializer=initializer,
                     activation_type=ff_activation,
                     is_training=is_training,
-                    reuse=True)
+                    reuse=tf.AUTO_REUSE)
 
         # concat all q, ctx related variables
         output_h = tf.concat([ctx_output_h, q_output_h], axis=0)
