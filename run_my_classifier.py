@@ -95,9 +95,8 @@ flags.DEFINE_string("decay_method", default="poly", help="poly or cos")
 
 # evaluation
 flags.DEFINE_bool("do_predict", default=False, help="whether to do prediction")
-flags.DEFINE_string("eval_split", default="dev", help="could be dev or test")
-flags.DEFINE_integer("eval_batch_size", default=128,
-                     help="batch size for evaluation")
+flags.DEFINE_string("prediction_file", default="",
+                    help="prediction path prefix")
 flags.DEFINE_integer("predict_batch_size", default=128,
                      help="batch size for prediction.")
 # task specific
