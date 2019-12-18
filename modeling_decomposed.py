@@ -368,3 +368,55 @@ def get_decomposed_qa_outputs(FLAGS, features, is_training):
         return_dict["cls_log_probs"] = cls_log_probs
 
     return return_dict
+
+
+def get_decomposed_classification_outputs(FLAGS, features, is_training):
+    seq1_ids = features["seq1_ids"]
+    seq2_ids = features["seq2_ids"]
+    seq_len = FLAGS.max_seq_length
+    first_seq_len = FLAGS.max_first_length + 2
+    second_seq_len = seq_len - first_seq_len
+    seq1_attn_mask = get_attention_mask(seq1_ids, first_seq_len)
+    seq2_attn_mask = get_attention_mask(seq2_ids, second_seq_len)
+    seq_attn_mask = get_attention_mask(tf.concat([seq2_ids, seq1_ids],
+                                                 axis=0), seq_len)
+
+    xlnet_config = xlnet.XLNetConfig(json_path=FLAGS.model_config_path)
+    run_config = xlnet.create_run_config(is_training, True, FLAGS)
+    initializer = xlnet._get_initializer(run_config)
+    tfm_args = dict(
+        n_token=xlnet_config.n_token,
+        initializer=initializer,
+        attn_type="bi",
+        n_layer=xlnet_config.n_layer,
+        d_model=xlnet_config.d_model,
+        n_head=xlnet_config.n_head,
+        d_head=xlnet_config.d_head,
+        d_inner=xlnet_config.d_inner,
+        ff_activation=xlnet_config.ff_activation,
+        untie_r=xlnet_config.untie_r,
+
+        is_training=run_config.is_training,
+        use_bfloat16=run_config.use_bfloat16,
+        use_tpu=run_config.use_tpu,
+        dropout=run_config.dropout,
+        dropatt=run_config.dropatt,
+
+        # mem_len=run_config.mem_len,
+        # reuse_len=run_config.reuse_len,
+        # bi_data=run_config.bi_data,
+        clamp_len=run_config.clamp_len,
+        # same_length=run_config.same_length,
+        ctx_ids=seq2_ids,
+        q_ids=seq1_ids,
+        q_seq_len=first_seq_len,
+        ctx_seq_len=second_seq_len,
+        sep_layer=FLAGS.sep_layer,
+        q_attn_mask=seq1_attn_mask,
+        c_attn_mask=seq2_attn_mask,
+        qc_attn_mask=seq_attn_mask,
+    )
+
+    with tf.variable_scope("model", reuse=tf.AUTO_REUSE):
+        upper_outputs = transformer_xl_decomposed(**tfm_args)
+

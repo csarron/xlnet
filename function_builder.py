@@ -134,7 +134,7 @@ def construct_scalar_host_call(
 #     else:
 #         return two_stream_loss(FLAGS, features, labels, mems, is_training)
 
-def get_classification_loss(FLAGS, features, is_training):
+def get_classification_outputs(FLAGS, features, is_training):
     """Loss for downstream classification tasks."""
     input_ids = features["input_ids"]
     seg_id = features["segment_ids"]

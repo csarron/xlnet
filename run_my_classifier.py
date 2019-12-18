@@ -209,7 +209,7 @@ def get_model_fn(FLAGS):
     def model_fn(features, labels, mode, params):
         # ### Training or Evaluation
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-        return_dict = function_builder.get_classification_loss(
+        return_dict = function_builder.get_classification_outputs(
             FLAGS, features, is_training)
         # per_example_loss = return_dict["per_example_loss"]
         cls_logits = return_dict["cls_logits"]
